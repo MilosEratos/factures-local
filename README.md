@@ -17,7 +17,7 @@ La facturation manipule des **données clients confidentielles** (adresses, mont
 |---|---|
 | **Contrôle flexible des données** | Les données clients + le RIB restent en local (`data/`, `config.json`). Zéro API cloud, zéro télémétrie. |
 | **TCO optimisé** | Le LLM tourne via [llama.cpp](https://github.com/ggml-org/llama.cpp) sur votre GPU : zéro coût par requête, contrairement aux API payantes au token. |
-| **Performances sans limites** | Le serveur tourne 24 h/24 sur la machine ; pas de quota, pas de latence réseau, pas d'interruption du fournisseur. |
+| **Performances sans limites** | Un double-clic pour démarrer, fermer la fenêtre pour arrêter : le serveur vit le temps d'éditer votre facture, pas une seconde de plus. Pas de quota, pas de latence réseau, pas d'interruption du fournisseur. |
 
 ## Ce que fait l'agent
 
