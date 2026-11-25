@@ -87,9 +87,19 @@ set "LLAMA_ZIP_URL="
 REM NVIDIA ?
 where nvidia-smi >nul 2>&1
 if %errorlevel%==0 (
+    REM Verifier si le GPU est trop vieux pour CUDA 12 (Kepler = GTX 6xx/7xx, GT 6xx/7xx)
+    set "GPU_OLD=0"
+    for /f "tokens=*" %%g in ('nvidia-smi --query-gpu=name --format=csv,noheader 2^>nul') do (
+        echo %%g | findstr /i "GTX 6\|GTX 7\|GT 6\|GT 7" >nul && set "GPU_OLD=1"
+    )
+    if "%GPU_OLD%"=="1" (
+        echo        GPU NVIDIA detecte mais trop ancien pour CUDA 12 - utilisation du CPU.
+        echo        (Fonctionne, mais plus lent : ~1-2 min par facture)
+        goto :download_llama
+    )
     set "GPU_TYPE=nvidia"
-    set "LLAMA_ZIP=llama-b12716-bin-win-cuda-12.4.zip"
-    set "LLAMA_ZIP_URL=https://github.com/ggml-org/llama.cpp/releases/download/b12716/llama-b12716-bin-win-cuda-12.4.zip"
+    set "LLAMA_ZIP=llama-b12716-bin-win-cuda-12.4-x64.zip"
+    set "LLAMA_ZIP_URL=https://github.com/ggml-org/llama.cpp/releases/download/b12716/llama-b12716-bin-win-cuda-12.4-x64.zip"
     echo        GPU NVIDIA detecte - build CUDA.
     goto :download_llama
 )
@@ -101,18 +111,19 @@ for /f "tokens=*" %%i in ('wmic path win32_VideoController get name 2^>nul') do 
 )
 if "%AMD_FOUND%"=="1" (
     set "GPU_TYPE=amd"
-    set "LLAMA_ZIP=llama-b12716-bin-win-vulkan.zip"
-    set "LLAMA_ZIP_URL=https://github.com/ggml-org/llama.cpp/releases/download/b12716/llama-b12716-bin-win-vulkan.zip"
+    set "LLAMA_ZIP=llama-b12716-bin-win-vulkan-x64.zip"
+    set "LLAMA_ZIP_URL=https://github.com/ggml-org/llama.cpp/releases/download/b12716/llama-b12716-bin-win-vulkan-x64.zip"
     echo        GPU AMD detecte - build Vulkan.
     goto :download_llama
 )
 
-echo        Pas de GPU detecte - build CPU (plus lent, ~1-2 min/facture).
+echo        Pas de GPU compatible detecte (NVIDIA/AMD) - utilisation du CPU.
+echo        (Fonctionne, mais plus lent : ~1-2 min par facture)
 
 :download_llama
 if not defined LLAMA_ZIP (
-    set "LLAMA_ZIP=llama-b12716-bin-win-x64.zip"
-    set "LLAMA_ZIP_URL=https://github.com/ggml-org/llama.cpp/releases/download/b12716/llama-b12716-bin-win-x64.zip"
+    set "LLAMA_ZIP=llama-b12716-bin-win-cpu-x64.zip"
+    set "LLAMA_ZIP_URL=https://github.com/ggml-org/llama.cpp/releases/download/b12716/llama-b12716-bin-win-cpu-x64.zip"
 )
 echo.
 
