@@ -1,0 +1,31 @@
+{
+  "app_name": "Factures Local",
+  "header": [
+    { "bl": 44.28, "x": 587.64, "size": 24, "font": "bold", "text": "FACTURE" },
+    { "bl": 71.87, "x": 587.65, "size": 10, "font": "bold", "text": "Studio Démo" },
+    { "bl": 83.87, "x": 587.64, "size": 10, "text": "12 Rue des Exemples" },
+    { "bl": 95.87, "x": 587.64, "size": 10, "text": "75001 Paris" },
+    { "bl": 107.87, "x": 587.64, "size": 10, "text": "France" },
+    { "bl": 134.80, "x": 587.46, "size": 10, "text": "01 23 45 67 89" },
+    { "bl": 147.06, "x": 587.46, "size": 10, "text": "www.studio-demo.fr" },
+    { "bl": 159.31, "x": 587.46, "size": 10, "text": "contact@studio-demo.fr" },
+    { "bl": 170.75, "x": 587.46, "size": 9, "text": "N° SIRET : 12345678900012" }
+  ],
+  "rib": [
+    { "bl": 608.55, "bold": true, "text": "Relevé d'identité Bancaire" },
+    { "bl": 621.51, "text": "Code I.B.A.N : FR76 0000 0000 0000 0000 0000 000" },
+    { "bl": 634.46, "text": "Code B.I.C : DEMOFRPPXXXX" },
+    { "bl": 647.42, "text": "Code Banque : 00000" },
+    { "bl": 660.38, "text": "Code Guichet : 00000" },
+    { "bl": 673.34, "text": "Compte : 00000000000" },
+    { "bl": 686.29, "text": "Clé RIB : 00" },
+    { "bl": 699.25, "text": "Domiciliation : BANQUE DÉMO" }
+  ],
+  "tva_note": "TVA non applicable — article 293 B du CGI",
+  "logo": "static/logo.png",
+  "llama": {
+    "host": "http://localhost:8081",
+    "model": "models/qwen3.5-4b-q4_k_m.gguf",
+    "max_tokens": 2048
+  }
+}
