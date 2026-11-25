@@ -183,11 +183,28 @@ def build(data, out_path, config=None):
             T(c, 25.35, ADDR2L_FIRST_BL + i * ADDR2L_PITCH, 9, a)
 
     # titre (centré verticalement, 1re ligne en gras)
+    TITLE_MAX_W = 200.0
     title = data.get("title", [])
     if title:
-        n = len(title)
-        first_bl = TITLE_CENTER_Y - (n - 1) * TITLE_PITCH / 2
+        wrapped = []
         for i, t in enumerate(title):
+            font = F_BOLD if i == 0 else F_REG
+            words = t.split()
+            lines, cur = [], ""
+            for w in words:
+                test = (cur + " " + w).strip()
+                if pdfmetrics.stringWidth(test, font, TITLE_SIZE) <= TITLE_MAX_W:
+                    cur = test
+                else:
+                    if cur:
+                        lines.append(cur)
+                    cur = w
+            if cur:
+                lines.append(cur)
+            wrapped.extend(lines)
+        n = len(wrapped)
+        first_bl = TITLE_CENTER_Y - (n - 1) * TITLE_PITCH / 2
+        for i, t in enumerate(wrapped):
             font = F_BOLD if i == 0 else F_REG
             T(c, 306.0, first_bl + i * TITLE_PITCH, TITLE_SIZE, t, font, "center")
 
