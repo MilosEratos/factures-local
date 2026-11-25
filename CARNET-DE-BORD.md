@@ -19,11 +19,20 @@ Ce carnet de bord raconte les décisions qui ont transformé cette irritation qu
 ## Page 2 — Les grandes décisions (et pourquoi)
 
 ### 1. Le local d'abord, le cloud ensuite — et jamais sans garde-fous
-Un agent IA a besoin d'un cerveau. Deux options : une API cloud (puissante, mais chaque mot part de la machine) ou un modèle local via Ollama (gratuit, privé, disponible 24 h/24).
+Un agent IA a besoin d'un cerveau. Deux options : une API cloud (puissante, mais chaque mot part de la machine) ou un modèle local (gratuit, privé, disponible 24 h/24).
 
-Nous avons choisi les deux — avec une règle non négociable : **en mode cloud, aucune donnée personnelle ne part**. Concrètement, avant tout envoi externe, chaque valeur sensible (nom, adresse, montant, RIB) est remplacée par un code anonyme (`[[C1]]`, `[[A2]]`…). La table de correspondance reste sur la machine. Le modèle ne voit que la structure d'une facture et des jetons ; au retour, tout est reconstitué localement.
+Nous avons choisi le local — avec une règle non négociable : **aucune donnée personnelle ne quitte la machine**. Le modèle tourne sur le GPU de l'utilisateur, les données clients et le RIB restent dans des fichiers locaux. Zéro API cloud, zéro télémétrie.
 
 > C'est l'idée centrale du projet : la confidentialité ne doit pas être un mode optionnel, c'est l'architecture.
+
+### 1bis. D'Ollama à llama.cpp — le choix de la portabilité
+Le projet a démarré avec **Ollama**, le serveur de modèles local le plus populaire. Il fonctionne, mais il impose une installation système (service Windows, dossier de modèles global, version liée au GPU). Pour un produit que l'on veut distribuer en un seul dossier, c'est trop lourd.
+
+La migration vers **llama.cpp** (binaire `llama-server.exe`, ~200 MB) a résolu deux problèmes d'un coup :
+- **Portabilité** : un dossier, un double-clic (`start.bat`), zéro installation externe. Le modèle GGUF est dans le même dossier.
+- **Contrôle du « thinking »** : l'option `--reasoning off` désactive la phase de raisonnement interne du modèle. Sans elle, le 4B « pense » indéfiniment et ne renvoie jamais le JSON. Avec, il répond en **7–11 secondes**, directement en JSON valide.
+
+> Le message : la même application s'adapte au matériel que vous avez déjà, et se distribue en un dossier.
 
 ### 2. Un modèle qui tient dans 6 Go de VRAM
 Pour que « Monsieur Tout-le-Monde » puisse s'en servir, le cerveau doit tenir sur une carte graphique courante. Nous avons cherché le modèle le plus léger qui fasse correctement le travail — pas le plus petit possible, et pas le plus gros.
@@ -33,9 +42,9 @@ Le verdict de la recherche : **Qwen3.5 4B** (~4 Go). Il score 97,5 % sur les év
 > Le message est simple : la même application s'adapte au matériel que vous avez déjà.
 
 ### 3. Arrêter de prier le modèle — et le contraindre
-Les petits modèles font des erreurs de forme (JSON mal fermé, texte autour du JSON). La solution élégante existe depuis peu : Ollama permet d'imposer un **schéma JSON** au décodeur lui-même — le modèle est *mécaniquement incapable* de sortir un format invalide. La qualité du contenu reste à mesurer (c'est notre benchmark), mais la forme est garantie.
+Les petits modèles font des erreurs de forme (JSON mal fermé, texte autour du JSON). La solution : un **prompt strict** qui décrit le schéma JSON attendu, combiné à `--reasoning off` sur llama.cpp qui empêche le modèle de « penser » au lieu de répondre. Le résultat : un JSON valide à chaque fois, sans phase de raisonnement qui consommerait le budget de tokens.
 
-> Détail qui compte : cette fonction n'existe que pour l'inférence **locale**. Le cloud d'Ollama ne la propose pas. Encore un point pour l'Agent PC.
+> Détail qui compte : cette maîtrise du décodage n'est possible qu'en **local**. Une API cloud ne laisse pas contrôler le mode de raisonnement du modèle. Encore un point pour l'Agent PC.
 
 ### 4. Ne jamais verrouiller sur « mon » fichier
 Le livre des comptes pose une question piège : chacun gère ses comptes dans son propre fichier — Excel local, Google Sheets, autre logiciel. Adapter l'appli à *un* format, c'est l'exclure de tous les autres.
@@ -81,5 +90,5 @@ Une facture, c'est un document banal. Un agent qui la fabrique chez vous, dans v
 
 ---
 
-*Projet soumis à l'ASUS Agent Computer Challenge — catégorie Developer.*
+*Projet soumis à l'ASUS Agent Computer Challenge — catégorie High-End.*
 *\#ASUSAgentComputer \#AgenticAI \#LocalAI \#AgentPC*
