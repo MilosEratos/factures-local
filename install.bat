@@ -126,9 +126,27 @@ if not defined LLAMA_ZIP (
 echo.
 
 REM ============================================================
-REM 3. LLAMA.CPP
+REM 3. VISUAL C++ REDIST + LLAMA.CPP
 REM ============================================================
 echo  [3/4] Moteur IA (llama.cpp)...
+
+REM Verifier le Visual C++ Redistributable (dependance de llama-server.exe)
+if not exist "C:\Windows\System32\VCRUNTIME140.dll" (
+    echo        Installation du Visual C++ Redistributable...
+    set "VCREDIST=%ROOT%_vc_redist.exe"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://aka.ms/vs/17/release/vc_redist.x64.exe' -OutFile '%VCREDIST%'"
+    if %errorlevel% neq 0 (
+        echo.
+        echo        [ERREUR] Echec du telechargement du Visual C++ Redistributable.
+        echo        Telechargez-le manuellement depuis :
+        echo        https://aka.ms/vs/17/release/vc_redist.x64.exe
+        pause
+        exit /b 1
+    )
+    start /wait "" "%VCREDIST%" /install /quiet /norestart
+    del "%VCREDIST%" 2>nul
+    echo        Visual C++ Redistributable installe.
+)
 
 if exist "%LLAMA_DIR%\llama-server.exe" (
     echo        llama.cpp deja present.
