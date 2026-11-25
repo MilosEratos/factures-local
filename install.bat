@@ -94,7 +94,6 @@ if %errorlevel%==0 (
     )
     if "%GPU_OLD%"=="1" (
         echo        GPU NVIDIA detecte mais trop ancien pour CUDA 12 - utilisation du CPU.
-        echo        (Fonctionne, mais plus lent : ~1-2 min par facture)
         goto :download_llama
     )
     set "GPU_TYPE=nvidia"
@@ -118,7 +117,6 @@ if "%AMD_FOUND%"=="1" (
 )
 
 echo        Pas de GPU compatible detecte (NVIDIA/AMD) - utilisation du CPU.
-echo        (Fonctionne, mais plus lent : ~1-2 min par facture)
 
 :download_llama
 if not defined LLAMA_ZIP (
