@@ -27,7 +27,7 @@ if %errorlevel%==0 (
     goto :pip_install
 )
 
-echo        Python system introuvable — telechargement du Python embarque...
+echo        Python system introuvable - telechargement du Python embarque...
 if not exist "%PYTHON_DIR%" mkdir "%PYTHON_DIR%"
 
 set "PY_ZIP=%ROOT%_python-embed.zip"
@@ -64,7 +64,7 @@ echo        Python embarque installe.
 
 :pip_install
 echo        Installation des dependances (flask, reportlab, PyMuPDF)...
-%PY% -m pip install -r "%ROOT%requirements.txt" --quiet
+%PY% -m pip install -r "%ROOT%requirements.txt" --quiet --no-warn-script-location
 if %errorlevel% neq 0 (
     echo.
     echo        [ERREUR] Echec de l'installation des dependances.
@@ -107,7 +107,7 @@ if "%AMD_FOUND%"=="1" (
     goto :download_llama
 )
 
-echo        Pas de GPU detecte — build CPU (plus lent, ~1-2 min/facture).
+echo        Pas de GPU detecte - build CPU (plus lent, ~1-2 min/facture).
 
 :download_llama
 if not defined LLAMA_ZIP (
