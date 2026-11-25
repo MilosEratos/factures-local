@@ -27,27 +27,44 @@ La facturation manipule des **données clients confidentielles** (adresses, mont
 
 ## Démarrage rapide
 
-### Option 1 : Double-clic (Windows)
+### Option 1 : Double-clic (Windows) — recommandé
 
-Prérequis : **Python 3.10+** et un GPU NVIDIA (CUDA).
+Aucun prérequis. Le script d'installation détecte votre matériel et télécharge tout ce qu'il faut.
 
 ```
-1. Cloner le repo
-2. Copier llama.cpp/ et models/ dans le dossier (voir ci-dessous)
-3. Double-cliquer sur start.bat
+1. Cloner le repo (ou télécharger le zip)
+2. Double-cliquer sur install.bat   ← une seule fois
+3. Double-cliquer sur start.bat     ← à chaque utilisation
 ```
+
+`install.bat` :
+- Installe Python (embarqué, ~10 MB) si absent
+- Installe les dépendances (flask, reportlab, PyMuPDF)
+- Détecte votre GPU (NVIDIA → CUDA, AMD → Vulkan, sinon CPU)
+- Télécharge le bon build de llama.cpp (~200 MB)
+- Télécharge le modèle Qwen3.5 4B (~2.6 GB)
 
 Le navigateur s'ouvre automatiquement sur `http://localhost:5000`.
 
 ### Option 2 : Manuel
+
+Prérequis : **Python 3.10+** et un GPU (NVIDIA ou AMD) ou CPU.
 
 ```bash
 git clone https://github.com/MilosEratos/factures-local.git
 cd factures-local
 pip install -r requirements.txt
 
+# Télécharger llama.cpp (build CUDA, Vulkan ou CPU) :
+# https://github.com/ggml-org/llama.cpp/releases → b12716
+# Placer dans llama.cpp/
+
+# Télécharger le modèle :
+# https://huggingface.co/unsloth/Qwen3.5-4B-GGUF → Qwen3.5-4B-Q4_K_M.gguf
+# Placer dans models/
+
 # 1. Lancer le moteur IA (port 8081)
-llama.cpp\llama-server.exe -m models\qwen3.5-4b-q4_k_m.gguf -ngl 99 --port 8081 --no-webui --reasoning off
+llama.cpp\llama-server.exe -m models\Qwen3.5-4B-Q4_K_M.gguf -ngl 99 --port 8081 --no-webui --reasoning off
 
 # 2. Lancer l'application (port 5000) — dans un autre terminal
 python server.py
@@ -57,19 +74,13 @@ Ouvrez `http://localhost:5000` :
 - **Formulaire** → *Générer la facture* → aperçu + téléchargement PDF.
 - **Assistant** (panneau de droite) → décrivez la facture en langage naturel → *Remplir le formulaire*.
 
-### Fichiers à télécharger (non inclus dans le repo)
-
-| Fichier | Source | Taille |
-|---------|--------|--------|
-| `llama.cpp/` (llama-server.exe + DLLs) | [llama.cpp releases](https://github.com/ggml-org/llama.cpp/releases) — b12716, CUDA 12.4 | ~200 MB |
-| `models/qwen3.5-4b-q4_k_m.gguf` | [HuggingFace](https://huggingface.co/Qwen) — Qwen3.5 4B Q4_K_M | ~2.6 GB |
-
 Personnalisation : `config.json` contient l'identité du vendeur (en-tête, RIB, mention TVA, logo, modèle). Remplacez les valeurs de démo par les vôtres.
 
 ## Architecture
 
 ```
 factures-local/
+├── install.bat          # installation automatique : Python + dépendances + llama.cpp + modèle
 ├── start.bat            # double-clic : lance llama-server + Flask + navigateur
 ├── server.py            # serveur Flask : page web + endpoints (génération, fichiers, état, assistant)
 ├── config.json          # identité vendeur, RIB, logo, modèle (vos données, vos choix)
@@ -77,8 +88,8 @@ factures-local/
 ├── static/              # interface web (index.html, style.css, app.js) — appels fetch, aucune dépendance cloud
 ├── core/
 │   └── gen.py           # moteur PDF : mise en page calibrée au pixel + aperçu PNG (PyMuPDF)
-├── llama.cpp/           # moteur IA portable (llama-server.exe + DLLs CUDA)
-├── models/              # modèle GGUF (Qwen3.5 4B Q4_K_M)
+├── llama.cpp/           # moteur IA portable (llama-server.exe + DLLs) — installé par install.bat
+├── models/              # modèle GGUF (Qwen3.5 4B Q4_K_M) — installé par install.bat
 └── data/                # state.json + PDF générés (gitignored)
 ```
 
@@ -86,12 +97,14 @@ Flux de données : `app.js` ⇄ `server.py` (HTTP local, port 5000) → `core/ge
 
 ## Moteur IA — llama.cpp
 
-Le modèle **Qwen3.5 4B** (Q4_K_M, 2.6 GB) tourne via `llama-server.exe` en mode API OpenAI. L'option `--reasoning off` désactive le mode « thinking » du modèle : il répond directement en JSON sans phase de raisonnement interne, ce qui réduit le temps de réponse à **7–11 secondes** par facture sur un GPU NVIDIA.
+Le modèle **Qwen3.5 4B** (Q4_K_M, 2.6 GB) tourne via `llama-server.exe` en mode API OpenAI. L'option `--reasoning off` désactive le mode « thinking » du modèle : il répond directement en JSON sans phase de raisonnement interne, ce qui réduit le temps de réponse à **7–11 secondes** par facture sur un GPU.
 
-| GPU | Temps/facture |
-|-----|---------------|
-| RTX 4090 24 GB | **7–11 s** |
-| GTX TITAN X 12 GB (Pascal) | à mesurer |
+Compatible **NVIDIA** (CUDA), **AMD** (Vulkan) et **CPU** (sans GPU).
+
+| Matériel | Temps/facture |
+|----------|---------------|
+| RTX 4090 24 GB (NVIDIA) | **7–11 s** |
+| GPU AMD (Vulkan) | à mesurer |
 | CPU seul (RAM) | ~1,5–2 min |
 
 ## Moteur PDF — calibré au pixel
@@ -116,8 +129,8 @@ MIT — voir [LICENSE](LICENSE).
 
 The LLM runs locally through [llama.cpp](https://github.com/ggml-org/llama.cpp) (Qwen3.5 4B, no cloud API, no per-token cost, 7–11 s per invoice on a GPU), the PDF engine is ReportLab with layout constants measured in points against real invoices, and the preview is rendered with PyMuPDF. State (counter, history, clients) lives in a local JSON file.
 
-**One folder, one double-click, zero external dependencies.**
+**One folder, one double-click, zero external dependencies.** Works on NVIDIA (CUDA), AMD (Vulkan), and CPU.
 
-Run it: `start.bat` (Windows) → `http://localhost:5000`.
+Run it: `install.bat` (once) → `start.bat` (each use) → `http://localhost:5000`.
 
 Submitted to the [ASUS Agent Computer Challenge](https://www.asus.com/microsite/agent-computer/fr/) (High-End category). #ASUSAgentComputer #AgenticAI #LocalAI #AgentPC
