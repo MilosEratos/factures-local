@@ -3,7 +3,7 @@ setlocal EnableDelayedExpansion
 title Factures Local — Installation
 echo.
 echo  ============================================
-echo   Factures Local — Installation
+echo   Factures Local - Installation
 echo  ============================================
 echo.
 
@@ -19,7 +19,8 @@ REM 1. PYTHON
 REM ============================================================
 echo  [1/4] Python...
 
-where python >nul 2>&1
+REM Verifier si un vrai Python est present (pas l'alias Microsoft Store)
+python --version >nul 2>&1
 if %errorlevel%==0 (
     echo        Python system detecte.
     set "PY=python"
@@ -89,7 +90,7 @@ if %errorlevel%==0 (
     set "GPU_TYPE=nvidia"
     set "LLAMA_ZIP=llama-b12716-bin-win-cuda-12.4.zip"
     set "LLAMA_ZIP_URL=https://github.com/ggml-org/llama.cpp/releases/download/b12716/llama-b12716-bin-win-cuda-12.4.zip"
-    echo        GPU NVIDIA detecte — build CUDA.
+    echo        GPU NVIDIA detecte - build CUDA.
     goto :download_llama
 )
 
@@ -102,7 +103,7 @@ if "%AMD_FOUND%"=="1" (
     set "GPU_TYPE=amd"
     set "LLAMA_ZIP=llama-b12716-bin-win-vulkan.zip"
     set "LLAMA_ZIP_URL=https://github.com/ggml-org/llama.cpp/releases/download/b12716/llama-b12716-bin-win-vulkan.zip"
-    echo        GPU AMD detecte — build Vulkan.
+    echo        GPU AMD detecte - build Vulkan.
     goto :download_llama
 )
 
