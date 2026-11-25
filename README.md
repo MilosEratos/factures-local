@@ -97,15 +97,9 @@ Flux de données : `app.js` ⇄ `server.py` (HTTP local, port 5000) → `core/ge
 
 ## Moteur IA — llama.cpp
 
-Le modèle **Qwen3.5 4B** (Q4_K_M, 2.6 GB) tourne via `llama-server.exe` en mode API OpenAI. L'option `--reasoning off` désactive le mode « thinking » du modèle : il répond directement en JSON sans phase de raisonnement interne, ce qui réduit le temps de réponse à **7–11 secondes** par facture sur un GPU.
+Le modèle **Qwen3.5 4B** (Q4_K_M, 2.6 GB) tourne via `llama-server.exe` en mode API OpenAI. L'option `--reasoning off` désactive le mode « thinking » du modèle : il répond directement en JSON sans phase de raisonnement interne.
 
 Compatible **NVIDIA** (CUDA), **AMD** (Vulkan) et **CPU** (sans GPU).
-
-| Matériel | Temps/facture |
-|----------|---------------|
-| RTX 4090 24 GB (NVIDIA) | **7–11 s** |
-| GPU AMD (Vulkan) | à mesurer |
-| CPU seul (RAM) | ~1,5–2 min |
 
 ## Moteur PDF — calibré au pixel
 
@@ -127,7 +121,7 @@ MIT — voir [LICENSE](LICENSE).
 
 **Factures Local is a 100 % local AI agent that turns plain sentences into invoice PDFs.** Describe your work in natural language and the agent fills the form, renders a pixel-calibrated invoice PDF, and keeps every byte on your machine — client data and bank details never leave it.
 
-The LLM runs locally through [llama.cpp](https://github.com/ggml-org/llama.cpp) (Qwen3.5 4B, no cloud API, no per-token cost, 7–11 s per invoice on a GPU), the PDF engine is ReportLab with layout constants measured in points against real invoices, and the preview is rendered with PyMuPDF. State (counter, history, clients) lives in a local JSON file.
+The LLM runs locally through [llama.cpp](https://github.com/ggml-org/llama.cpp) (Qwen3.5 4B, no cloud API, no per-token cost), the PDF engine is ReportLab with layout constants measured in points against real invoices, and the preview is rendered with PyMuPDF. State (counter, history, clients) lives in a local JSON file.
 
 **One folder, one double-click, zero external dependencies.** Works on NVIDIA (CUDA), AMD (Vulkan), and CPU.
 
