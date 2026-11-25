@@ -182,40 +182,19 @@ if exist "%MODEL_FILE%" (
 )
 
 if not exist "%MODEL_DIR%" mkdir "%MODEL_DIR%"
-echo        Telechargement du modele via miroir GitHub (2 parties)...
-set "PART_A=%ROOT%_model_part_aa"
-set "PART_B=%ROOT%_model_part_ab"
-echo        Partie 1/2...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://github.com/xiaocongyu66/qwen35-4b-gguf/releases/latest/download/qwen35-4b-q4km.gguf.part-aa' -OutFile '%PART_A%'"
+echo        Telechargement du modele depuis HuggingFace...
+echo        (Fichier de 2,6 GB - le telechargement peut etre long)
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf' -OutFile '%MODEL_FILE%'"
 if %errorlevel% neq 0 (
     echo.
-    echo        [ERREUR] Echec du telechargement (partie 1).
-    pause
-    exit /b 1
-)
-echo        Partie 2/2...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://github.com/xiaocongyu66/qwen35-4b-gguf/releases/latest/download/qwen35-4b-q4km.gguf.part-ab' -OutFile '%PART_B%'"
-if %errorlevel% neq 0 (
-    echo.
-    echo        [ERREUR] Echec du telechargement (partie 2).
-    pause
-    exit /b 1
-)
-echo        Assemblage du modele...
-copy /b "%PART_A%" + "%PART_B%" "%MODEL_FILE%" >nul
-del "%PART_A%" 2>nul
-del "%PART_B%" 2>nul
-if exist "%MODEL_FILE%" (
-    echo        Modele installe.
-) else (
-    echo.
-    echo        [ERREUR] Modele introuvable apres assemblage.
+    echo        [ERREUR] Echec du telechargement du modele.
     echo        Vous pouvez le telecharger manuellement depuis :
     echo        https://huggingface.co/unsloth/Qwen3.5-4B-GGUF
     echo        et le placer dans : %MODEL_DIR%
     pause
     exit /b 1
 )
+echo        Modele installe.
 echo.
 
 :done
