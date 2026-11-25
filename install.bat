@@ -182,8 +182,16 @@ if exist "%MODEL_FILE%" (
 )
 
 if not exist "%MODEL_DIR%" mkdir "%MODEL_DIR%"
+echo.
+echo        Le modele fait 2,6 GB.
+echo        Selon votre connexion, le telechargement peut prendre
+echo        de quelques minutes a une heure.
+echo        C'est un telechargement unique : une fois termine,
+echo        il reste dans le dossier et ne sera plus refait.
+echo.
+echo        Patience, ca vaut le coup.
+echo.
 echo        Telechargement du modele depuis HuggingFace...
-echo        (Fichier de 2,6 GB - le telechargement peut etre long)
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf' -OutFile '%MODEL_FILE%'"
 if %errorlevel% neq 0 (
     echo.
