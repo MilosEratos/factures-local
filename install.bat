@@ -32,26 +32,28 @@ if not exist "%PYTHON_DIR%" mkdir "%PYTHON_DIR%"
 set "PY_ZIP=%ROOT%_python-embed.zip"
 if not exist "%PY_ZIP%" (
     echo        Telechargement Python %PYTHON_VER% embeddable...
-    powershell -NoProfile -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/%PYTHON_VER%/python-%PYTHON_VER%-embed-amd64.zip' -OutFile '%PY_ZIP%'"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/%PYTHON_VER%/python-%PYTHON_VER%-embed-amd64.zip' -OutFile '%PY_ZIP%'"
     if %errorlevel% neq 0 (
+        echo.
         echo        [ERREUR] Echec du telechargement Python.
+        echo        Verifiez votre connexion internet.
+        pause
         exit /b 1
     )
 )
 echo        Extraction...
-powershell -NoProfile -Command "Expand-Archive -Path '%PY_ZIP%' -DestinationPath '%PYTHON_DIR%' -Force"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -Path '%PY_ZIP%' -DestinationPath '%PYTHON_DIR%' -Force"
 del "%PY_ZIP%" 2>nul
 
 REM Activer pip dans le Python embeddable
-set "PTH_FILE=%PYTHON_DIR%\python%PYTHON_VER:~0,5%._pth"
-REM Le fichier s'appelle python312._pth
-for %%f in ("%PYTHON_DIR%\python*._pth") do set "PTH_FILE=%%f"
-powershell -NoProfile -Command "(Get-Content '%PTH_FILE%') -replace '#import site','import site' | Set-Content '%PTH_FILE%'"
+for %%f in ("%PYTHON_DIR%\python*._pth") do (
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content '%%f') -replace '#import site','import site' | Set-Content '%%f'"
+)
 
 REM Installer pip
 set "GETPIP=%ROOT%_get-pip.py"
 if not exist "%GETPIP%" (
-    powershell -NoProfile -Command "Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%GETPIP%'"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%GETPIP%'"
 )
 "%PYTHON_DIR%\python.exe" "%GETPIP%" >nul 2>&1
 del "%GETPIP%" 2>nul
@@ -63,7 +65,10 @@ echo        Python embarque installe.
 echo        Installation des dependances (flask, reportlab, PyMuPDF)...
 %PY% -m pip install -r "%ROOT%requirements.txt" --quiet
 if %errorlevel% neq 0 (
+    echo.
     echo        [ERREUR] Echec de l'installation des dependances.
+    echo        Verifiez votre connexion internet.
+    pause
     exit /b 1
 )
 echo        Dependances OK.
@@ -75,29 +80,28 @@ REM ============================================================
 echo  [2/4] Detection du GPU...
 
 set "GPU_TYPE=cpu"
-set "LLAMA_ZIP_URL="
 set "LLAMA_ZIP="
+set "LLAMA_ZIP_URL="
 
 REM NVIDIA ?
 where nvidia-smi >nul 2>&1
 if %errorlevel%==0 (
     set "GPU_TYPE=nvidia"
     set "LLAMA_ZIP=llama-b12716-bin-win-cuda-12.4.zip"
-    set "LLAMA_ZIP_URL=https://github.com/ggml-org/llama.cpp/releases/download/b12716/%LLAMA_ZIP%"
+    set "LLAMA_ZIP_URL=https://github.com/ggml-org/llama.cpp/releases/download/b12716/llama-b12716-bin-win-cuda-12.4.zip"
     echo        GPU NVIDIA detecte — build CUDA.
     goto :download_llama
 )
 
 REM AMD ?
+set "AMD_FOUND=0"
 for /f "tokens=*" %%i in ('wmic path win32_VideoController get name 2^>nul') do (
-    echo %%i | findstr /i "AMD Radeon" >nul && (
-        set "GPU_TYPE=amd"
-        set "LLAMA_ZIP=llama-b12716-bin-win-vulkan.zip"
-        set "LLAMA_ZIP_URL=https://github.com/ggml-org/llama.cpp/releases/download/b12716/%%LLAMA_ZIP%%"
-    )
+    echo %%i | findstr /i "AMD Radeon" >nul && set "AMD_FOUND=1"
 )
-
-if "%GPU_TYPE%"=="amd" (
+if "%AMD_FOUND%"=="1" (
+    set "GPU_TYPE=amd"
+    set "LLAMA_ZIP=llama-b12716-bin-win-vulkan.zip"
+    set "LLAMA_ZIP_URL=https://github.com/ggml-org/llama.cpp/releases/download/b12716/llama-b12716-bin-win-vulkan.zip"
     echo        GPU AMD detecte — build Vulkan.
     goto :download_llama
 )
@@ -107,7 +111,7 @@ echo        Pas de GPU detecte — build CPU (plus lent, ~1-2 min/facture).
 :download_llama
 if not defined LLAMA_ZIP (
     set "LLAMA_ZIP=llama-b12716-bin-win-x64.zip"
-    set "LLAMA_ZIP_URL=https://github.com/ggml-org/llama.cpp/releases/download/b12716/%LLAMA_ZIP%"
+    set "LLAMA_ZIP_URL=https://github.com/ggml-org/llama.cpp/releases/download/b12716/llama-b12716-bin-win-x64.zip"
 )
 echo.
 
@@ -125,14 +129,17 @@ if not exist "%LLAMA_DIR%" mkdir "%LLAMA_DIR%"
 set "ZIP_FILE=%ROOT%_llama.zip"
 
 echo        Telechargement de %LLAMA_ZIP%...
-powershell -NoProfile -Command "Invoke-WebRequest -Uri '%LLAMA_ZIP_URL%' -OutFile '%ZIP_FILE%'"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri '%LLAMA_ZIP_URL%' -OutFile '%ZIP_FILE%'"
 if %errorlevel% neq 0 (
+    echo.
     echo        [ERREUR] Echec du telechargement de llama.cpp.
+    echo        Verifiez votre connexion internet.
+    pause
     exit /b 1
 )
 
 echo        Extraction...
-powershell -NoProfile -Command "Expand-Archive -Path '%ZIP_FILE%' -DestinationPath '%LLAMA_DIR%' -Force"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -Path '%ZIP_FILE%' -DestinationPath '%LLAMA_DIR%' -Force"
 del "%ZIP_FILE%" 2>nul
 
 REM Si le zip contient un sous-dossier, remonter les fichiers
@@ -146,7 +153,9 @@ for /d %%d in ("%LLAMA_DIR%\*") do (
 if exist "%LLAMA_DIR%\llama-server.exe" (
     echo        llama.cpp installe.
 ) else (
+    echo.
     echo        [ERREUR] llama-server.exe introuvable apres extraction.
+    pause
     exit /b 1
 )
 echo.
@@ -164,12 +173,14 @@ if exist "%MODEL_FILE%" (
 
 if not exist "%MODEL_DIR%" mkdir "%MODEL_DIR%"
 echo        Telechargement du modele (peut prendre quelques minutes)...
-powershell -NoProfile -Command "Invoke-WebRequest -Uri 'https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf' -OutFile '%MODEL_FILE%'"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf' -OutFile '%MODEL_FILE%'"
 if %errorlevel% neq 0 (
+    echo.
     echo        [ERREUR] Echec du telechargement du modele.
     echo        Vous pouvez le telecharger manuellement depuis :
     echo        https://huggingface.co/unsloth/Qwen3.5-4B-GGUF
     echo        et le placer dans : %MODEL_DIR%
+    pause
     exit /b 1
 )
 echo        Modele installe.
