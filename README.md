@@ -72,7 +72,7 @@ python server.py
 
 Ouvrez `http://localhost:5000` :
 - **Formulaire** → *Générer la facture* → aperçu + téléchargement PDF.
-- **Assistant** (panneau de droite) → décrivez la facture en langage naturel → *Remplir le formulaire*.
+- **Assistant** (panneau de droite) → décrivez la facture en langage naturel → *Générer le formulaire*.
 
 Personnalisation : `config.json` contient l'identité du vendeur (en-tête, RIB, mention TVA, logo, modèle). Remplacez les valeurs de démo par les vôtres.
 
