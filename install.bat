@@ -134,7 +134,7 @@ REM Verifier le Visual C++ Redistributable (dependance de llama-server.exe)
 if not exist "C:\Windows\System32\VCRUNTIME140.dll" (
     echo        Installation du Visual C++ Redistributable...
     set "VCREDIST=%ROOT%_vc_redist.exe"
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://aka.ms/vs/17/release/vc_redist.x64.exe' -OutFile '%VCREDIST%'"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://aka.ms/vs/17/release/vc_redist.x64.exe' -OutFile '%VCREDIST%' -UseBasicParsing"
     if %errorlevel% neq 0 (
         echo.
         echo        [ERREUR] Echec du telechargement du Visual C++ Redistributable.
