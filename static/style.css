@@ -44,13 +44,13 @@ textarea.inp{resize:vertical;line-height:1.4}
 .main{min-width:0}
 .chat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;position:sticky;top:12px}
 .chat h2{margin:0 0 10px}
-.msgs{max-height:70vh;min-height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin:0 0 10px}
-.msg{font-size:14px;line-height:1.45;padding:8px 10px;border-radius:8px;white-space:pre-wrap;word-break:break-word}
-.msg.user{background:var(--bg);border:1px solid var(--line)}
-.msg.ai{background:var(--bg);border:1px dashed var(--line);color:var(--muted)}
 #chatInput{margin:0 0 10px}
 .chat .actions{margin-top:0}
 #chatStatus{margin:8px 0 0}
+.msgs{max-height:50vh;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin:12px 0 0}
+.msg{font-size:14px;line-height:1.45;padding:8px 10px;border-radius:8px;white-space:pre-wrap;word-break:break-word}
+.msg.user{background:var(--bg);border:1px solid var(--line)}
+.msg.ai{background:var(--bg);border:1px dashed var(--line);color:var(--muted)}
 @media(max-width:900px){
   .layout{grid-template-columns:1fr}
   .chat{position:static}
