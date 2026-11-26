@@ -1,29 +1,24 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Serveur standalone de l'app Factures Local.
 
-Lance :  python server.py   →  http://localhost:5000
+Lance :  python server.py   â†’  http://localhost:5000
 
 Endpoints :
   GET  /                 page web (static/index.html)
-  POST /api/generate     génère la facture PDF + aperçu PNG dans data/
-  GET  /files/<name>     sert un fichier de data/ (PDF ou aperçu PNG)
+  POST /api/generate     gÃ©nÃ¨re la facture PDF + aperÃ§u PNG dans data/
+  GET  /files/<name>     sert un fichier de data/ (PDF ou aperÃ§u PNG)
   DELETE /api/files/<n>  supprime un fichier de data/
-  GET  /api/state        état local : compteur, historique, clients (data/state.json)
-  POST /api/state        sauvegarde l'état
-  POST /api/assistant    LLM local via llama-server → JSON facture
-  GET  /api/models       liste des modèles disponibles
+  GET  /api/state        Ã©tat local : compteur, historique, clients (data/state.json)
+  POST /api/state        sauvegarde l'Ã©tat
+  POST /api/assistant    LLM local via Ollama â†’ JSON facture
+  GET  /api/models       liste des modÃ¨les Ollama installÃ©s
 """
-import atexit
 import json
 import os
-import socket
-import subprocess
+import re
 import sys
-import threading
-import time
 import urllib.request
 import urllib.error
-import webbrowser
 
 from flask import Flask, jsonify, request, send_from_directory, abort
 
@@ -34,152 +29,148 @@ os.makedirs(DATA_DIR, exist_ok=True)
 sys.path.insert(0, ROOT)
 from core.gen import build, make_preview, invoice_filename, load_config  # noqa: E402
 
-app = Flask(__name__, static_folder="static")
-LLAMA_HOST = "http://127.0.0.1:8081"
+CONFIG = load_config()
+LLAMA = CONFIG.get("llama", {})
+LLAMA_HOST = LLAMA.get("host", "http://localhost:8081").rstrip("/")
+LLAMA_MODEL = LLAMA.get("model", "models/qwen3.5-4b-q4_k_m.gguf")
 
-# ── Gestion de llama-server ──────────────────────────────────────────
+app = Flask(__name__, static_folder=os.path.join(ROOT, "static"),
+            static_url_path="/static")
 
-_llama_proc = None
+
+def _state_path():
+    return os.path.join(DATA_DIR, "state.json")
 
 
-def _kill_port_8081():
-    """Tue un éventuel llama-server orphelin sur le port 8081."""
+def load_state():
     try:
-        s = socket.create_connection(("127.0.0.1", 8081), timeout=1)
-        s.close()
-    except OSError:
-        return  # port libre, rien à faire
-    # Le port est occupé : on tue le processus
-    try:
-        subprocess.run(
-            ["powershell", "-NoProfile", "-Command",
-             "Get-NetTCPConnection -LocalPort 8081 -State Listen "
-             "-ErrorAction SilentlyContinue | "
-             "ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }"],
-            timeout=10,
-        )
-        time.sleep(1)
+        with open(_state_path(), encoding="utf-8") as f:
+            return json.load(f)
     except Exception:
-        pass
+        return {"counter": "1", "history": [], "clients": []}
 
 
-def _start_llama():
-    """Lance llama-server en fond (sans fenêtre) et attend qu'il soit prêt."""
-    global _llama_proc
-    exe = os.path.join(ROOT, "llama.cpp", "llama-server.exe")
-    model = os.path.join(ROOT, "models", "Qwen3.5-4B-Q4_K_M.gguf")
-    if not os.path.exists(exe):
-        raise RuntimeError("llama-server.exe introuvable — lancez d'abord install.bat")
-
-    # Nettoyer un éventuel orphelin
-    _kill_port_8081()
-
-    print("Chargement du modèle (cela peut prendre un moment)...")
-    flags = 0x08000000 if os.name == "nt" else 0  # CREATE_NO_WINDOW
-    _llama_proc = subprocess.Popen(
-        [exe, "-m", model, "-ngl", "99", "--port", "8081",
-         "--no-webui", "--reasoning", "off"],
-        creationflags=flags,
-    )
-
-    # Attendre que le port 8081 réponde
-    deadline = time.time() + 300
-    while time.time() < deadline:
-        if _llama_proc.poll() is not None:
-            raise RuntimeError(
-                "llama-server s'est arrêté au démarrage (code %d)." % _llama_proc.returncode)
-        try:
-            s = socket.create_connection(("127.0.0.1", 8081), timeout=1)
-            s.close()
-            print("Moteur IA prêt.")
-            return
-        except OSError:
-            time.sleep(1)
-    raise RuntimeError("llama-server ne répond pas après 5 minutes")
-
-
-def _stop_llama():
-    """Tue llama-server (appelé par atexit)."""
-    global _llama_proc
-    if _llama_proc and _llama_proc.poll() is None:
-        _llama_proc.kill()
-        _llama_proc.wait(timeout=5)
-        print("Moteur IA arrêté.")
-
-
-atexit.register(_stop_llama)
-
-# ── Routes ───────────────────────────────────────────────────────────
+def save_state(state):
+    with open(_state_path(), "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=2)
 
 
 @app.route("/")
 def index():
-    return send_from_directory("static", "index.html")
+    return send_from_directory(os.path.join(ROOT, "static"), "index.html")
+
+
+@app.route("/api/state", methods=["GET"])
+def api_state_get():
+    return jsonify(load_state())
+
+
+@app.route("/api/state", methods=["POST"])
+def api_state_set():
+    state = request.get_json(force=True)
+    if not isinstance(state, dict):
+        abort(400)
+    save_state(state)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/generate", methods=["POST"])
 def api_generate():
-    d = request.get_json(force=True)
+    data = request.get_json(force=True)
     try:
-        cfg = load_config()
-        pdf_bytes, preview_bytes, fname = build(d, cfg)
-        with open(os.path.join(DATA_DIR, fname), "wb") as f:
-            f.write(pdf_bytes)
-        prev = fname.replace(".pdf", "_preview.png")
-        with open(os.path.join(DATA_DIR, prev), "wb") as f:
-            f.write(preview_bytes)
-        return jsonify({"ok": True, "file": fname, "preview": prev})
+        for k in ("number", "date", "client_name"):
+            if not str(data.get(k, "")).strip():
+                return jsonify({"ok": False, "error": "champ manquant : %s" % k}), 400
+        lines = data.get("lines", [])
+        if not lines:
+            return jsonify({"ok": False, "error": "aucune ligne de prestation"}), 400
+        for l in lines:
+            if not (float(l.get("amount") or 0) > 0):
+                return jsonify({"ok": False, "error": "chaque ligne doit avoir un montant"}), 400
+
+        name = data.get("output") or invoice_filename(
+            str(data["number"]), str(data["date"]),
+            str(data["client_name"]), data.get("title", []))
+        name = os.path.basename(name)
+        for ch in '<>:"|?*':
+            name = name.replace(ch, "-")
+        out_path = os.path.join(DATA_DIR, name)
+        total = build(data, out_path, CONFIG)
+        preview = make_preview(out_path)
+        return jsonify({
+            "ok": True,
+            "file": name,
+            "preview": (os.path.basename(preview) if preview else None),
+            "total": total,
+        })
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 400
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@app.route("/files/<name>")
+@app.route("/files/<path:name>")
 def files(name):
-    return send_from_directory(DATA_DIR, name)
+    safe = os.path.basename(name)
+    p = os.path.join(DATA_DIR, safe)
+    if not os.path.exists(p):
+        abort(404)
+    return send_from_directory(DATA_DIR, safe)
 
 
-@app.route("/api/files/<name>", methods=["DELETE"])
-def delete_file(name):
-    p = os.path.join(DATA_DIR, name)
+@app.route("/api/files/<path:name>", methods=["DELETE"])
+def api_files_delete(name):
+    safe = os.path.basename(name)
+    p = os.path.join(DATA_DIR, safe)
     if os.path.exists(p):
         os.remove(p)
     return jsonify({"ok": True})
 
 
-@app.route("/api/state", methods=["GET", "POST"])
-def api_state():
-    sf = os.path.join(DATA_DIR, "state.json")
-    if request.method == "POST":
-        with open(sf, "w", encoding="utf-8") as f:
-            json.dump(request.get_json(force=True), f, ensure_ascii=False, indent=2)
-        return jsonify({"ok": True})
-    if os.path.exists(sf):
-        with open(sf, "r", encoding="utf-8") as f:
-            return jsonify(json.load(f))
-    return jsonify({"counter": 1, "history": [], "clients": []})
+SYSTEM_PROMPT = (
+    "Tu remplis un formulaire de facture Ã  partir des messages de l'utilisateur. "
+    "RÃ©ponds UNIQUEMENT avec un objet JSON valide, sans markdown ni texte autour, "
+    "exactement au format : "
+    '{"number":"","date":"JJ/MM/AAAA","client":"","addr":[],"title":[],'
+    '"lines":[{"desc":"","note":"","qty":1,"amount":0}]}'
+)
 
 
 @app.route("/api/assistant", methods=["POST"])
 def api_assistant():
-    d = request.get_json(force=True)
-    messages = d.get("messages", [])
-    today = d.get("today", "")
-    system = (
-        "Tu es un assistant de facturation. L'utilisateur décrit une prestation "
-        "en langage naturel. Renvoie UNIQUEMENT un objet JSON valide, sans texte "
-        "autour, avec ces clés : number (string, ex \"N-1\"), date (string YYYY-MM-DD), "
-        "client (string), addr (array de string, une ligne par adresse), "
-        "lines (array d'objets {desc, note, qty, amount}), "
-        "title (array de string, titres de section, peut être vide). "
-        "Si une info manque, mets une valeur vide ou raisonnable. "
-        "Date du jour : " + today
-    )
+    body = request.get_json(force=True)
+    messages = body.get("messages", [])
+    today = body.get("today", "")
+    if not messages:
+        return jsonify({"ok": False, "error": "aucun message"}), 400
+
+    prompt = ("Aujourd'hui la date est %s (JJ/MM/AAAA).\n" % today +
+              "\n".join("Message %d : %s" % (i + 1, m) for i, m in enumerate(messages)) +
+              "\n\nRÃ¨gles : number = le numÃ©ro de facture demandÃ© (ex : Â« numÃ©ro 230300 Â»), "
+              "vide sinon. date = la date de la facture en JJ/MM/AAAA ; si l'utilisateur dit "
+              "Â« demain Â», calcule le lendemain d'aujourd'hui ; vide sinon. client = le nom du "
+              "client seul, sans les mots de la phrase. addr = tableau d'au plus 2 Ã©lÃ©ments : "
+              "[rue, \"code postal ville\"] ; le code postal et la ville sont TOUJOURS sur la "
+              "mÃªme ligne (ex : \"75011 Paris\", \"69001 Lyon\") ; si l'utilisateur mentionne un "
+              "arrondissement (ex : \"18e\"), le code postal est 750XX oÃ¹ XX = le numÃ©ro de "
+              "l'arrondissement (ex : \"18e\" â†’ \"75018 Paris\") ; sinon, si la ville est une "
+              "grande ville franÃ§aise bien connue et que le code postal n'est pas donnÃ©, ajoute "
+              "le code postal usuel AVANT le nom de la ville ; ne devine JAMAIS un arrondissement "
+              "diffÃ©rent de celui mentionnÃ© par l'utilisateur. "
+              "title = la 1re ligne est le type de prestation, la 2e ligne le nom du projet s'il "
+              "est distinct. lines = une entrÃ©e par prestation : desc = nom de la prestation, "
+              "note = le tarif au format Â« 500â‚¬/jour Â» s'il est mentionnÃ©, qty = nombre de jours "
+              "ou d'unitÃ©s, amount = total de la ligne (tarif Ã— qty, Ã  calculer). Ne mets que ce "
+              "qui est rÃ©ellement dit, sinon vide (\"\" ou [] ou 0). Ne devine rien.")
+
+    model = body.get("model") or LLAMA_MODEL
     payload = {
-        "model": "local",
-        "messages": [{"role": "system", "content": system}] +
-                    [{"role": "user", "content": m} for m in messages],
-        "temperature": 0.1,
-        "max_tokens": 1024,
+        "model": model,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        "stream": False,
+        "max_tokens": int(LLAMA.get("max_tokens", 2048)),
+        "temperature": 0,
     }
     try:
         req = urllib.request.Request(
@@ -187,15 +178,18 @@ def api_assistant():
             data=json.dumps(payload).encode("utf-8"),
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=120) as r:
+        with urllib.request.urlopen(req, timeout=600) as r:
             out = json.loads(r.read().decode("utf-8"))
         text = out["choices"][0]["message"]["content"]
-        return jsonify({"ok": True, "text": text})
+        return jsonify({"ok": True, "text": text, "model": model})
+    except urllib.error.URLError as e:
+        return jsonify({"ok": False,
+                        "error": "llama-server injoignable (%s) â€” vÃ©rifiez que le serveur tourne." % e}), 502
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@app.route("/api/models")
+@app.route("/api/models", methods=["GET"])
 def api_models():
     try:
         with urllib.request.urlopen(LLAMA_HOST + "/v1/models", timeout=10) as r:
@@ -205,14 +199,11 @@ def api_models():
         return jsonify({"ok": False, "models": [], "error": str(e)})
 
 
-# ── Démarrage ────────────────────────────────────────────────────────
-
 if __name__ == "__main__":
     import io
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     port = int(os.environ.get("PORT", 5000))
-    _start_llama()
     print("Factures Local -> http://localhost:%d" % port)
-    threading.Timer(1.5, lambda: webbrowser.open("http://localhost:%d" % port)).start()
     app.run(host="127.0.0.1", port=port, debug=False)
+
