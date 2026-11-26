@@ -155,10 +155,11 @@ def api_assistant():
               "grande ville franÃ§aise bien connue et que le code postal n'est pas donnÃ©, ajoute "
               "le code postal usuel AVANT le nom de la ville ; ne devine JAMAIS un arrondissement "
               "diffÃ©rent de celui mentionnÃ© par l'utilisateur. "
-              "title = la 1re ligne est le type de prestation, la 2e ligne le nom du projet s'il "
-              "est distinct. lines = une entrÃ©e par prestation : desc = nom de la prestation, "
-              "note = le tarif au format Â« 500â‚¬/jour Â» s'il est mentionnÃ©, qty = nombre de jours "
-              "ou d'unitÃ©s, amount = total de la ligne (tarif Ã— qty, Ã  calculer). Ne mets que ce "
+              "title = la 1re ligne est le type de prestation, la 2e ligne le nom du projet UNIQUEMENT "
+              "si un nom de projet est explicitement mentionné (sinon une seule ligne, ne mets JAMAIS "
+              "'Projet non spécifié' ni rien d'autre). lines = une entrÃ©e par prestation : desc = nom de la prestation, "
+              "note = le tarif au format Â« 500â‚¬/jour Â» s'il est mentionnÃ©, qty = quantité (jours, heures ou unités selon ce qui est dit), "
+              "amount = total de la ligne (tarif Ã— qty, Ã  calculer). Ne mets que ce "
               "qui est rÃ©ellement dit, sinon vide (\"\" ou [] ou 0). Ne devine rien.")
 
     model = body.get("model") or LLAMA_MODEL
