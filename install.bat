@@ -19,11 +19,18 @@ REM 1. PYTHON
 REM ============================================================
 echo  [1/4] Python...
 
-REM Verifier si un vrai Python est present (pas l'alias Microsoft Store)
+REM Verifier si un vrai Python system est present (pas l'alias Microsoft Store)
 python --version >nul 2>&1
 if %errorlevel%==0 (
     echo        Python system detecte.
     set "PY=python"
+    goto :pip_install
+)
+
+REM Verifier si le Python embarque est deja present
+if exist "%PYTHON_DIR%\python.exe" (
+    echo        Python embarque deja present.
+    set "PY=%PYTHON_DIR%\python.exe"
     goto :pip_install
 )
 
