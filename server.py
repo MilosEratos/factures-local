@@ -158,7 +158,7 @@ def api_assistant():
               "title = la 1re ligne est le type de prestation, la 2e ligne le nom du projet UNIQUEMENT "
               "si un nom de projet est explicitement mentionné (sinon une seule ligne, ne mets JAMAIS "
               "'Projet non spécifié' ni rien d'autre). lines = une entrÃ©e par prestation : desc = nom de la prestation, "
-              "note = le tarif au format Â« 500â‚¬/jour Â» s'il est mentionnÃ©, qty = quantité (jours, heures ou unités selon ce qui est dit), "
+              "note = le tarif au format Â« 500â‚¬/jour Â» s'il est mentionnÃ©, qty = quantité (jours, heures ou unités selon ce qui est dit) "
               "amount = total de la ligne (tarif Ã— qty, Ã  calculer). Ne mets que ce "
               "qui est rÃ©ellement dit, sinon vide (\"\" ou [] ou 0). Ne devine rien.")
 
