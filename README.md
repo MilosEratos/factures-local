@@ -46,6 +46,8 @@ Aucun prérequis. Le script d'installation détecte votre matériel et télécha
 
 Le navigateur s'ouvre automatiquement sur `http://localhost:5000`.
 
+**Pied léger** : le contexte du modèle est calibré à 2048 tokens (`-c 2048`), suffisant pour la facturation — l'application tourne dans **~4 Go de RAM/VRAM** au lieu des 10 Go d'un contexte long. Compatible avec les laptops 8 Go.
+
 ### Option 2 : Manuel
 
 Prérequis : **Python 3.10+** et un GPU (NVIDIA ou AMD) ou CPU.
@@ -64,7 +66,7 @@ pip install -r requirements.txt
 # Placer dans models/
 
 # 1. Lancer le moteur IA (port 8081)
-llama.cpp\llama-server.exe -m models\Qwen3.5-4B-Q4_K_M.gguf -ngl 99 --port 8081 --no-webui --reasoning off
+llama.cpp\llama-server.exe -m models\Qwen3.5-4B-Q4_K_M.gguf -ngl 99 --port 8081 --no-webui --reasoning off -c 2048
 
 # 2. Lancer l'application (port 5000) — dans un autre terminal
 python server.py
