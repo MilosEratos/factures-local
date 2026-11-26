@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Serveur standalone de l'app Factures Local.
 
-Lance :  python server.py   →  http://localhost:5000
+Lance par start.bat (qui demarre aussi llama-server en arriere-plan).
+Fermer la console arrete tout (meme console).
 
 Endpoints :
   GET  /                 page web (static/index.html)
@@ -13,7 +14,6 @@ Endpoints :
   POST /api/assistant    LLM local via llama-server → JSON facture
   GET  /api/models       liste des modèles disponibles
 """
-import atexit
 import json
 import os
 import socket
@@ -37,77 +37,47 @@ from core.gen import build, make_preview, invoice_filename, load_config  # noqa:
 app = Flask(__name__, static_folder="static")
 LLAMA_HOST = "http://127.0.0.1:8081"
 
-# ── Gestion de llama-server ──────────────────────────────────────────
 
-_llama_proc = None
+def _port_open(port):
+    try:
+        s = socket.create_connection(("127.0.0.1", port), timeout=1)
+        s.close()
+        return True
+    except OSError:
+        return False
 
 
 def _kill_port_8081():
     """Tue un éventuel llama-server orphelin sur le port 8081."""
-    try:
-        s = socket.create_connection(("127.0.0.1", 8081), timeout=1)
-        s.close()
-    except OSError:
-        return  # port libre, rien à faire
-    # Le port est occupé : on tue le processus
+    if not _port_open(8081):
+        return
+    print("Un ancien moteur IA tourne encore sur le port 8081 — arret...")
     try:
         subprocess.run(
             ["powershell", "-NoProfile", "-Command",
              "Get-NetTCPConnection -LocalPort 8081 -State Listen "
              "-ErrorAction SilentlyContinue | "
              "ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }"],
-            timeout=10,
+            timeout=15,
         )
         time.sleep(1)
     except Exception:
         pass
 
 
-def _start_llama():
-    """Lance llama-server en fond (sans fenêtre) et attend qu'il soit prêt."""
-    global _llama_proc
-    exe = os.path.join(ROOT, "llama.cpp", "llama-server.exe")
-    model = os.path.join(ROOT, "models", "Qwen3.5-4B-Q4_K_M.gguf")
-    if not os.path.exists(exe):
-        raise RuntimeError("llama-server.exe introuvable — lancez d'abord install.bat")
-
-    # Nettoyer un éventuel orphelin
-    _kill_port_8081()
-
-    print("Chargement du modèle (cela peut prendre un moment)...")
-    flags = 0x08000000 if os.name == "nt" else 0  # CREATE_NO_WINDOW
-    _llama_proc = subprocess.Popen(
-        [exe, "-m", model, "-ngl", "99", "--port", "8081",
-         "--no-webui", "--reasoning", "off"],
-        creationflags=flags,
-    )
-
-    # Attendre que le port 8081 réponde
+def _wait_llama():
+    """Attend que llama-server (demarre par start.bat) reponde sur 8081."""
+    print("Attente du chargement du modele (cela peut prendre un moment)...")
     deadline = time.time() + 300
     while time.time() < deadline:
-        if _llama_proc.poll() is not None:
-            raise RuntimeError(
-                "llama-server s'est arrêté au démarrage (code %d)." % _llama_proc.returncode)
-        try:
-            s = socket.create_connection(("127.0.0.1", 8081), timeout=1)
-            s.close()
-            print("Moteur IA prêt.")
+        if _port_open(8081):
+            print("Moteur IA pret.")
             return
-        except OSError:
-            time.sleep(1)
-    raise RuntimeError("llama-server ne répond pas après 5 minutes")
+        time.sleep(1)
+    print("[ERREUR] Le moteur IA ne repond pas apres 5 minutes.")
+    print("Voir le fichier llama.log dans le dossier de l'application.")
+    sys.exit(1)
 
-
-def _stop_llama():
-    """Tue llama-server (appelé par atexit)."""
-    global _llama_proc
-    if _llama_proc and _llama_proc.poll() is None:
-        _llama_proc.kill()
-        _llama_proc.wait(timeout=5)
-        print("Moteur IA arrêté.")
-
-
-atexit.register(_stop_llama)
 
 # ── Routes ───────────────────────────────────────────────────────────
 
@@ -212,7 +182,8 @@ if __name__ == "__main__":
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     port = int(os.environ.get("PORT", 5000))
-    _start_llama()
+    _kill_port_8081()
+    _wait_llama()
     print("Factures Local -> http://localhost:%d" % port)
     threading.Timer(1.5, lambda: webbrowser.open("http://localhost:%d" % port)).start()
     app.run(host="127.0.0.1", port=port, debug=False)

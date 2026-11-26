@@ -5,4 +5,5 @@ __pycache__/
 llama.cpp/
 models/
 python/
+llama.log
 _tmp*
