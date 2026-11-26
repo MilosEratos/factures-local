@@ -16,7 +16,6 @@ Endpoints :
 import atexit
 import json
 import os
-import re
 import socket
 import subprocess
 import sys
@@ -191,11 +190,7 @@ def api_assistant():
         with urllib.request.urlopen(req, timeout=120) as r:
             out = json.loads(r.read().decode("utf-8"))
         text = out["choices"][0]["message"]["content"]
-        # Extraire le JSON de la réponse
-        m = re.search(r"\{.*\}", text, re.DOTALL)
-        if m:
-            return app.response_class(m.group(0), mimetype="application/json")
-        return app.response_class(text, mimetype="text/plain")
+        return jsonify({"ok": True, "text": text})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
