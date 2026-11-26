@@ -31,10 +31,9 @@ async function init() {
   updateCounterInfo();
   renderLines(); renderClients(); renderHistory();
   el("gen").addEventListener("click", () => generate());
-  el("chatAdd").addEventListener("click", chatAdd);
   el("chatFill").addEventListener("click", chatFill);
   el("chatInput").addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); chatAdd(); }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); chatFill(); }
   });
   el("addLine").addEventListener("click", () => { state.lines.push(newLine()); renderLines(); });
   el("dl").addEventListener("click", () => { if (currentFile) download(currentFile); });
@@ -224,14 +223,6 @@ function addChatMsg(role, text) {
   box.scrollTop = box.scrollHeight;
 }
 
-function chatAdd() {
-  const t = el("chatInput").value.trim();
-  if (!t) return;
-  addChatMsg("user", t);
-  el("chatInput").value = "";
-  el("chatStatus").textContent = "";
-}
-
 function parseAI(text) {
   if (!text) return null;
   const m = text.match(/\{[\s\S]*\}/);
@@ -262,9 +253,12 @@ function applyAI(j) {
 }
 
 async function chatFill() {
+  const t = el("chatInput").value.trim();
+  if (!t) { el("chatStatus").textContent = "Écrivez d'abord la facture dans le chat."; return; }
+  addChatMsg("user", t);
+  el("chatInput").value = "";
   const userMsgs = [];
   el("chatMsgs").querySelectorAll(".msg.user").forEach(m => userMsgs.push(m.textContent));
-  if (!userMsgs.length) { el("chatStatus").textContent = "Écrivez d'abord la facture dans le chat."; return; }
   el("chatFill").disabled = true;
   el("chatStatus").textContent = "Interprétation en cours (modèle local)…";
   try {
