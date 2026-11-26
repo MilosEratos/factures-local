@@ -46,7 +46,7 @@ Aucun prérequis. Le script d'installation détecte votre matériel et télécha
 
 Le navigateur s'ouvre automatiquement sur `http://localhost:5000`.
 
-**Pied léger** : le contexte du modèle est calibré à 2048 tokens (`-c 2048`), suffisant pour la facturation — l'application tourne dans **~4 Go de RAM/VRAM** au lieu des 10 Go d'un contexte long. Compatible avec les laptops 8 Go.
+**Faible empreinte mémoire** : le contexte du modèle est calibré à 2048 tokens (`-c 2048`), suffisant pour la facturation — l'application tourne dans **~4 Go de RAM/VRAM** au lieu des 10 Go d'un contexte long. Compatible avec les laptops 8 Go.
 
 ### Option 2 : Manuel
 
