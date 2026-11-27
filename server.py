@@ -180,31 +180,44 @@ def _norm(s):
     return re.sub(r"\s+", " ", s).strip()
 
 
-def _fix_postal_code(addr, prompt_text=""):
+def _fix_postal_code(addr, user_msgs=""):
     if not isinstance(addr, list) or not addr:
         return addr
     out = [str(a).strip() for a in addr]
+    # Le modèle peut mettre un code à 5 chiffres sur la mauvaise ligne
+    # (rue au lieu de ville) → on le retire partout, on le remet à sa place.
+    for i in range(len(out)):
+        out[i] = re.sub(r"\s*,?\s*\b\d{5}\b", " ", out[i])
+        out[i] = re.sub(r"\s{2,}", " ", out[i]).strip(" ,;")
+    out = [a for a in out if a]
+    if not out:
+        return addr
     city_line = out[-1]
-    if not city_line:
+    # 1. L'utilisateur a donné un code dans son message → on le FORCE.
+    #    (On ignore les numéros de facture : « numéro 12345 »)
+    user_cp = None
+    for m in re.finditer(r"\b(\d{5})\b", user_msgs or ""):
+        pre = (user_msgs[:m.start()][-25:] + " ").lower()
+        if "numéro" not in pre and "numero" not in pre and "n°" not in pre:
+            user_cp = m.group(1)
+            break
+    if user_cp:
+        out[-1] = "%s %s" % (user_cp, city_line)
         return out
-    # L'utilisateur a donné un code postal dans le prompt → on ne touche JAMAIS.
-    if re.search(r"\b\d{5}\b", prompt_text or ""):
-        return out
+    # 2. Pas de code donné → code officiel du dictionnaire (villes connues).
     norm = _norm(city_line)
-    # Paris par arrondissement : « Paris 12e » / « Paris 12 » / « 12e Paris »
+    # Paris par arrondissement : « Paris 12e » / « 12e Paris »
     m = re.search(r"\bparis\s+(\d{1,2})e?\b", norm) or re.search(r"\b(\d{1,2})e?\s+paris\b", norm)
     if m:
         n = int(m.group(1))
         if 1 <= n <= 20:
-            city_line = re.sub(r"\b\d{5}\b\s*", "", city_line).strip()
             out[-1] = "750%02d %s" % (n, city_line)
             return out
-    # Ville dans le dictionnaire → code officiel (remplace un code halluciné).
     for city, cp in CITY_CPS.items():
         if city in norm:
-            city_line = re.sub(r"\b\d{5}\b\s*", "", city_line).strip()
             out[-1] = "%s %s" % (cp, city_line)
             break
+    # Ville inconnue, pas de code donné → pas de code (jamais inventé).
     return out
 
 
@@ -234,9 +247,9 @@ def api_assistant():
               "[rue, \"code postal ville\"] ; le code postal et la ville sont TOUJOURS sur la "
               "même ligne (ex : \"75011 Paris\", \"69001 Lyon\") ; si l'utilisateur mentionne un "
               "arrondissement (ex : \"18e\"), le code postal est 750XX où XX = le numéro de "
-              "l'arrondissement (ex : \"18e\" → \"75018 Paris\") ; sinon, si la ville est une "
-              "grande ville française bien connue et que le code postal n'est pas donné, ajoute "
-              "le code postal usuel AVANT le nom de la ville ; ne devine JAMAIS un arrondissement "
+              "l'arrondissement (ex : \"18e\" → \"75018 Paris\") ; sinon, si l'utilisateur ne donne "
+              "pas de code postal, mets la ville seule, SANS code postal (ne devine JAMAIS un code) ; "
+              "ne devine JAMAIS un arrondissement "
               "différent de celui mentionné par l'utilisateur. "
               "title = COURT (1 à 2 mots par ligne, JAMAIS de prix, durée, quantité ou tarif). "
               "1re ligne = type de prestation en 1-2 mots (ex : 'Shooting produit', 'Graphisme'). "
