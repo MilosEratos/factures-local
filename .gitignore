@@ -7,5 +7,7 @@ models/
 python/
 llama.log
 _tmp*
-  
-"_*_server.py"  
+*_server.py
+backups/
+rapports-relecture/
+tests/
