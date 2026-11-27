@@ -11,13 +11,12 @@ set "ROOT=%~dp0"
 set "PYTHON_DIR=%ROOT%python"
 set "LLAMA_DIR=%ROOT%llama.cpp"
 set "MODEL_DIR=%ROOT%models"
-set "MODEL_FILE=%MODEL_DIR%\Qwen3.5-4B-Q4_K_M.gguf"
 set "PYTHON_VER=3.12.8"
 
 REM ============================================================
 REM 1. PYTHON
 REM ============================================================
-echo  [1/4] Python...
+echo  [1/5] Python...
 
 REM Verifier si un vrai Python system est present (pas l'alias Microsoft Store)
 python --version >nul 2>&1
@@ -85,11 +84,12 @@ echo.
 REM ============================================================
 REM 2. DETECTION GPU
 REM ============================================================
-echo  [2/4] Detection du GPU...
+echo  [2/5] Detection du GPU...
 
 set "GPU_TYPE=cpu"
 set "LLAMA_ZIP="
 set "GPU_OLD="
+set "VRAM_MB=0"
 
 REM NVIDIA ?
 if exist "C:\Windows\System32\nvidia-smi.exe" (
@@ -104,6 +104,13 @@ if exist "C:\Windows\System32\nvidia-smi.exe" (
     set "LLAMA_ZIP=llama-b12716-bin-win-cuda-12.4-x64.zip"
     set "LLAMA_ZIP_URL=https://github.com/ggml-org/llama.cpp/releases/download/b12716/llama-b12716-bin-win-cuda-12.4-x64.zip"
     echo        GPU NVIDIA detecte - build CUDA.
+    REM Lire la VRAM (en Mo) - fichier temp + set /p pour une valeur propre
+    nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits > "%ROOT%_vram.txt" 2>nul
+    if exist "%ROOT%_vram.txt" (
+        set /p VRAM_MB=<"%ROOT%_vram.txt"
+        del "%ROOT%_vram.txt" 2>nul
+    )
+    if "%VRAM_MB%"=="" set "VRAM_MB=0"
     goto :download_llama
 )
 
@@ -132,7 +139,7 @@ echo.
 REM ============================================================
 REM 3. VISUAL C++ REDIST + LLAMA.CPP
 REM ============================================================
-echo  [3/4] Moteur IA (llama.cpp)...
+echo  [3/5] Moteur IA (llama.cpp)...
 
 REM Verifier le Visual C++ Redistributable (dependance de llama-server.exe)
 if not exist "C:\Windows\System32\VCRUNTIME140.dll" (
@@ -154,11 +161,27 @@ if not exist "C:\Windows\System32\VCRUNTIME140.dll" (
 
 if exist "%LLAMA_DIR%\llama-server.exe" (
     echo        llama.cpp deja present.
-    goto :download_model
+    goto :model_choice
 )
 
 if not exist "%LLAMA_DIR%" mkdir "%LLAMA_DIR%"
 set "ZIP_FILE=%ROOT%_llama.zip"
+set "CUDART_ZIP=%ROOT%_cudart.zip"
+
+REM Les builds CUDA necessitent aussi les DLLs CUDA (cuBLAS + runtime)
+if "!GPU_TYPE!"=="nvidia" (
+    if not exist "%LLAMA_DIR%\cudart64_12.dll" (
+        echo        Telechargement des DLLs CUDA...
+        curl.exe -L -C - -o "!CUDART_ZIP!" "https://github.com/ggml-org/llama.cpp/releases/download/b12716/cudart-llama-bin-win-cuda-12.4-x64.zip"
+        if !errorlevel! neq 0 (
+            echo.
+            echo        [ERREUR] Echec du telechargement des DLLs CUDA.
+            echo        Verifiez votre connexion internet.
+            pause
+            exit /b 1
+        )
+    )
+)
 
 echo        Telechargement de %LLAMA_ZIP%...
 curl.exe -L -C - -o "%ZIP_FILE%" "%LLAMA_ZIP_URL%"
@@ -173,6 +196,13 @@ if %errorlevel% neq 0 (
 echo        Extraction...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -Path '%ZIP_FILE%' -DestinationPath '%LLAMA_DIR%' -Force"
 del "%ZIP_FILE%" 2>nul
+
+if "!GPU_TYPE!"=="nvidia" (
+    if exist "!CUDART_ZIP!" (
+        powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -Path '!CUDART_ZIP!' -DestinationPath '%LLAMA_DIR%' -Force"
+        del "!CUDART_ZIP!" 2>nul
+    )
+)
 
 REM Si le zip contient un sous-dossier, remonter les fichiers
 for /d %%d in ("%LLAMA_DIR%\*") do (
@@ -193,10 +223,50 @@ if exist "%LLAMA_DIR%\llama-server.exe" (
 echo.
 
 REM ============================================================
-REM 4. MODELE
+REM 4. CHOIX DU MODELE
 REM ============================================================
-:download_model
-echo  [4/4] Modele IA (Qwen3.5 4B, ~2.6 GB)...
+:model_choice
+echo  [4/5] Modele IA...
+echo.
+
+REM Determiner le modele par defaut selon la VRAM
+set "MODEL_DEFAULT=1"
+if not "%VRAM_MB%"=="0" if %VRAM_MB% GTR 8191 (
+    set "MODEL_DEFAULT=2"
+)
+
+echo        Deux modeles sont disponibles :
+echo.
+echo          [1] Petit  - Qwen3.5 4B  (~2,6 Go)
+echo              Compatible avec toutes les machines (CPU, GPU 4 Go+)
+echo.
+echo          [2] Moyen  - Qwen3.5 9B  (~6 Go)
+echo              Plus precise, GPU 8 Go minimum recommande
+echo.
+if not "%VRAM_MB%"=="0" if %VRAM_MB% GTR 8191 (
+    echo        GPU avec %VRAM_MB% Mo de VRAM detecte - le modele Moyen est recommande.
+)
+echo.
+set /p "MODEL_CHOICE=        Votre choix [1/2] (defaut %MODEL_DEFAULT%) : "
+if "%MODEL_CHOICE%"=="" set "MODEL_CHOICE=%MODEL_DEFAULT%"
+
+if "%MODEL_CHOICE%"=="2" (
+    set "MODEL_FILE=%MODEL_DIR%\Qwen3.5-9B-Q4_K_M.gguf"
+    set "MODEL_URL=https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B-Q4_K_M.gguf"
+    set "MODEL_SIZE=~6 Go"
+) else (
+    set "MODEL_CHOICE=1"
+    set "MODEL_FILE=%MODEL_DIR%\Qwen3.5-4B-Q4_K_M.gguf"
+    set "MODEL_URL=https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf"
+    set "MODEL_SIZE=~2,6 Go"
+)
+
+echo.
+
+REM ============================================================
+REM 5. TELECHARGEMENT DU MODELE
+REM ============================================================
+echo  [5/5] Telechargement du modele (%MODEL_SIZE%)...
 
 if exist "%MODEL_FILE%" (
     echo        Modele deja present.
@@ -205,14 +275,14 @@ if exist "%MODEL_FILE%" (
 
 if not exist "%MODEL_DIR%" mkdir "%MODEL_DIR%"
 echo.
-echo        Telechargement du modele depuis HuggingFace...
-curl.exe -L -C - --progress-bar -o "%MODEL_FILE%" "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf"
+echo        Telechargement depuis HuggingFace...
+curl.exe -L -C - --progress-bar -o "%MODEL_FILE%" "%MODEL_URL%"
 if %errorlevel% neq 0 (
     echo.
     echo        [ERREUR] Echec du telechargement du modele.
     echo        Relancez install.bat pour reprendre le telechargement,
     echo        ou telechargez manuellement depuis :
-    echo        https://huggingface.co/unsloth/Qwen3.5-4B-GGUF
+    echo        %MODEL_URL%
     echo        et placez le fichier dans : %MODEL_DIR%
     pause
     exit /b 1

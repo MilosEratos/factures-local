@@ -7,9 +7,20 @@ echo.
 
 set "ROOT=%~dp0"
 
+REM Detecter le modele .gguf dans le dossier models
+set "MODEL_FILE="
+for %%f in ("%ROOT%models\*.gguf") do set "MODEL_FILE=%%f"
+if "%MODEL_FILE%"=="" (
+    echo  [ERREUR] Aucun modele trouve dans le dossier models\
+    echo  Lancez install.bat d'abord.
+    pause
+    exit /b 1
+)
+echo  [0/2] Modele detecte : %MODEL_FILE%
+
 REM 1. Lancer llama-server (IA locale)
 echo  [1/2] Demarrage du moteur IA (llama-server)...
-start /min "llama-server" "%ROOT%llama.cpp\llama-server.exe" -m "%ROOT%models\Qwen3.5-4B-Q4_K_M.gguf" -ngl 99 --port 8081 --no-webui --reasoning off -c 2048
+start /min "llama-server" "%ROOT%llama.cpp\llama-server.exe" -m "%MODEL_FILE%" -ngl 99 --port 8081 --no-webui --reasoning off -c 2048
 
 REM Attendre que le modele soit charge (boucle sur le port 8081)
 echo        Attente du chargement du modele...

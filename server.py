@@ -17,6 +17,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 import urllib.request
 import urllib.error
 
@@ -125,6 +126,88 @@ def api_files_delete(name):
     return jsonify({"ok": True})
 
 
+# ============================================================
+# Correction des codes postaux (post-processing, zéro impact
+# sur le temps de génération). Source : base officielle des
+# codes postaux (INSEE / Conseillers Opérationnels de l'Adresse).
+# Règles : on ne modifie JAMAIS un code déjà présent ; on
+# n'ajoute un code que si la ville est dans le dictionnaire ;
+# ville inconnue → on ne touche à rien.
+# ============================================================
+
+CITY_CPS = {
+    "paris": "75000", "lyon": "69000", "marseille": "13000",
+    "toulouse": "31000", "nice": "06000", "nantes": "44000",
+    "montpellier": "34000", "strasbourg": "67000", "bordeaux": "33000",
+    "lille": "59000", "rennes": "35000", "saint etienne": "42000",
+    "toulon": "83000", "grenoble": "38000", "dijon": "21000",
+    "angers": "49000", "le havre": "76000", "clermont ferrand": "63000",
+    "aix en provence": "13100", "brest": "29200", "limoges": "86000",
+    "tours": "37000", "amiens": "80000", "metz": "57000",
+    "perpignan": "66000", "nancy": "54000", "orleans": "45000",
+    "reims": "51000", "rouen": "76000", "besancon": "25000",
+    "caen": "14000", "mulhouse": "68000", "valenciennes": "59300",
+    "saint denis": "93200", "villeurbanne": "69100",
+    "nanterre": "92000", "creteil": "94000", "vitry sur seine": "94400",
+    "boulogne billancourt": "92100", "levallois perret": "92300",
+    "versailles": "78000", "cergy": "95000", "pontoise": "95300",
+    "evry courcouronnes": "91000", "corbeil essonnes": "91100",
+    "montreuil": "93100", "ivry sur seine": "94200",
+    "asnieres sur seine": "92600", "argenteuil": "95100",
+    "clichy": "92110", "neuilly sur seine": "92200", "puteaux": "92800",
+    "colombes": "92700", "sceaux": "92330", "rueil malmaison": "92390",
+    "cannes": "06400", "antibes": "06600", "saint laurent du var": "83100",
+    "avignon": "84000", "arles": "13200", "montlucon": "03100",
+    "moulins": "03000", "nevers": "58000", "chalon sur saone": "71100",
+    "macon": "71000", "dole": "39000", "lons le saunier": "39000",
+    "belfort": "90000", "colmar": "68000", "epinal": "88000",
+    "charleville mezieres": "08000", "troyes": "10000",
+    "chartres": "28000", "sens": "89000",
+    "la roche sur yon": "44300", "lucon": "49400", "la rochelle": "17000",
+    "royan": "17200", "poitiers": "86000", "gueret": "23000",
+    "aubagne": "13400", "salon de provence": "13400",
+    "draguignan": "83300", "frejus": "83600", "saint Raphael": "83700",
+    "grasse": "06130", "mougins": "06250", "villeneuve loubet": "06270",
+    "saint martin de re": "17290", "cognac": "16100",
+}
+
+
+def _norm(s):
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    s = s.lower()
+    s = re.sub(r"[^a-z0-9 ]", " ", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _fix_postal_code(addr, prompt_text=""):
+    if not isinstance(addr, list) or not addr:
+        return addr
+    out = [str(a).strip() for a in addr]
+    city_line = out[-1]
+    if not city_line:
+        return out
+    # L'utilisateur a donné un code postal dans le prompt → on ne touche JAMAIS.
+    if re.search(r"\b\d{5}\b", prompt_text or ""):
+        return out
+    norm = _norm(city_line)
+    # Paris par arrondissement : « Paris 12e » / « Paris 12 » / « 12e Paris »
+    m = re.search(r"\bparis\s+(\d{1,2})e?\b", norm) or re.search(r"\b(\d{1,2})e?\s+paris\b", norm)
+    if m:
+        n = int(m.group(1))
+        if 1 <= n <= 20:
+            city_line = re.sub(r"\b\d{5}\b\s*", "", city_line).strip()
+            out[-1] = "750%02d %s" % (n, city_line)
+            return out
+    # Ville dans le dictionnaire → code officiel (remplace un code halluciné).
+    for city, cp in CITY_CPS.items():
+        if city in norm:
+            city_line = re.sub(r"\b\d{5}\b\s*", "", city_line).strip()
+            out[-1] = "%s %s" % (cp, city_line)
+            break
+    return out
+
+
 SYSTEM_PROMPT = (
     "Tu remplis un formulaire de facture à partir des messages de l'utilisateur. "
     "Réponds UNIQUEMENT avec un objet JSON valide, sans markdown ni texte autour, "
@@ -147,7 +230,7 @@ def api_assistant():
               "\n\nRègles : number = le numéro de facture demandé (ex : « numéro 230300 »), "
               "vide sinon. date = la date de la facture en JJ/MM/AAAA ; si l'utilisateur dit "
               "« demain », calcule le lendemain d'aujourd'hui ; vide sinon. client = le nom du "
-              "client seul, sans les mots de la phrase. addr = tableau d'au plus 2 éléments : "
+              "client seul (prénom + nom), SANS le titre de civilité (jamais « Monsieur », « Madame », « M. », « Mme » ni « Mr ») et sans les mots de la phrase. addr = tableau d'au plus 2 éléments : "
               "[rue, \"code postal ville\"] ; le code postal et la ville sont TOUJOURS sur la "
               "même ligne (ex : \"75011 Paris\", \"69001 Lyon\") ; si l'utilisateur mentionne un "
               "arrondissement (ex : \"18e\"), le code postal est 750XX où XX = le numéro de "
@@ -183,6 +266,19 @@ def api_assistant():
         with urllib.request.urlopen(req, timeout=600) as r:
             out = json.loads(r.read().decode("utf-8"))
         text = out["choices"][0]["message"]["content"]
+        # Correction post-processing du code postal (zéro impact sur le temps)
+        # On n'analyse que les messages de l'utilisateur, PAS les règles
+        # (qui contiennent des exemples de codes postaux type "75011 Paris").
+        user_msgs = "\n".join(str(m) for m in messages)
+        try:
+            m = re.search(r"\{[\s\S]*\}", text)
+            if m:
+                obj = json.loads(m[0])
+                if "addr" in obj:
+                    obj["addr"] = _fix_postal_code(obj["addr"], user_msgs)
+                text = json.dumps(obj, ensure_ascii=False)
+        except Exception:
+            pass  # JSON invalide → on renvoie tel quel
         return jsonify({"ok": True, "text": text, "model": model})
     except urllib.error.URLError as e:
         return jsonify({"ok": False,
