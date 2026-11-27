@@ -20,11 +20,16 @@
   <label>Adresse client (une ligne par ligne)<textarea id="addr" class="inp" rows="2" placeholder="12 rue des Exemples&#10;75001 Paris"></textarea></label>
   <label>Titre de la prestation (1re ligne en gras, une ligne par ligne)<textarea id="title" class="inp" rows="2" placeholder="Modélisation 3D&#10;PROJET EXEMPLE"></textarea></label>
   <div id="lines"></div>
+  <div class="total-row">
+    <span class="total-label">Total</span>
+    <span id="totalVal">0 €</span>
+  </div>
   <button id="addLine" class="btn">+ Ajouter une ligne</button>
   <div class="row actions">
     <button id="gen" class="btn primary">Générer la facture</button>
   </div>
   <div id="status" class="muted"></div>
+  <p class="hint">💡 Pour une nouvelle facture, rechargez la page (F5).</p>
 </div>
 <div id="result" class="card hidden">
   <img id="preview" alt="Aperçu de la facture">

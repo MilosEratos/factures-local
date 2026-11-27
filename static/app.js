@@ -11,6 +11,11 @@ function fmtTotal(t) { return (Math.round(t * 100) / 100) + " €"; }
 function setStatus(s) { el("status").textContent = s; }
 function notify(s) { if (window.notify === undefined) console.log(s); }
 
+function updateTotal() {
+  const t = state.lines.reduce((s, l) => s + (parseFloat(l.a) || 0), 0);
+  el("totalVal").textContent = fmtTotal(t);
+}
+
 async function api(path, opts) {
   const r = await fetch(path, Object.assign({ headers: { "Content-Type": "application/json" } }, opts || {}));
   let d = null;
@@ -63,6 +68,7 @@ function renderLines() {
         if (cls === "n") l.n = inp.value;
         if (cls === "q") l.q = inp.value;
         if (cls === "a") l.a = inp.value;
+        updateTotal();
       });
       return inp;
     };
@@ -80,14 +86,14 @@ function renderLines() {
     row.appendChild(del);
     box.appendChild(row);
   });
+  updateTotal();
 }
 
 function renderClients() {
   const dl = el("clients");
   dl.innerHTML = "";
   state.clients.forEach(c => {
-    const o = document.createElement("option");
-    o.value = c;
+    const o = document.createElement("option"); o.value = c;
     dl.appendChild(o);
   });
 }
@@ -95,52 +101,37 @@ function renderClients() {
 function renderHistory() {
   const box = el("history");
   box.innerHTML = "";
-  if (!state.history.length) {
-    const d = document.createElement("div");
-    d.className = "muted";
-    d.textContent = "Aucune facture générée pour l'instant.";
-    box.appendChild(d);
-    return;
-  }
   state.history.forEach(h => {
     const row = document.createElement("div");
     row.className = "hrow";
-    const info = document.createElement("div");
+    const info = document.createElement("span");
     info.className = "info";
     info.textContent = "N° " + h.number + " — " + h.client + " — " + fmtTotal(h.total);
     row.appendChild(info);
-    if (h.test) {
-      const tag = document.createElement("span");
-      tag.className = "tag"; tag.textContent = "TEST";
-      row.appendChild(tag);
-    }
-    const mkBtn = (txt, fn) => {
-      const b = document.createElement("button");
-      b.className = "btn hbtn"; b.textContent = txt;
-      b.addEventListener("click", () => fn(b));
-      return b;
-    };
-    row.appendChild(mkBtn("Aperçu", () => showPreview(h)));
-    row.appendChild(mkBtn("PDF", () => download(h.file)));
-    let armed = false, timer = null;
-    row.appendChild(mkBtn("Supprimer", (b) => {
-      if (!armed) {
-        armed = true;
-        b.textContent = "Confirmer ?";
-        timer = setTimeout(() => { armed = false; b.textContent = "Supprimer"; }, 3000);
-        return;
-      }
-      clearTimeout(timer);
-      const del = async (n) => { if (n) api("/api/files/" + encodeURIComponent(n), { method: "DELETE" }).catch(() => {}); };
-      del(h.file);
-      if (h.preview) del(h.preview);
-      state.history = state.history.filter(x => x !== h);
-      persistState();
-      renderHistory();
-      if (currentFile === h.file) { currentFile = null; el("result").classList.add("hidden"); }
-    }));
+    const bA = document.createElement("button");
+    bA.className = "btn hbtn"; bA.textContent = "Aperçu";
+    bA.addEventListener("click", () => showPreview(h));
+    row.appendChild(bA);
+    const bP = document.createElement("button");
+    bP.className = "btn hbtn"; bP.textContent = "PDF";
+    bP.addEventListener("click", () => download(h.file));
+    row.appendChild(bP);
+    const bD = document.createElement("button");
+    bD.className = "btn hbtn"; bD.textContent = "Supprimer";
+    bD.addEventListener("click", () => delHistory(h.file));
+    row.appendChild(bD);
     box.appendChild(row);
   });
+}
+
+async function delHistory(file) {
+  if (!confirm("Supprimer cette facture ?")) return;
+  try {
+    await api("/api/files/" + encodeURIComponent(file), { method: "DELETE" });
+    state.history = state.history.filter(h => h.file !== file);
+    await persistState();
+    renderHistory();
+  } catch (e) { setStatus("Erreur : " + e.message); }
 }
 
 function download(name) {
@@ -250,6 +241,7 @@ function applyAI(j) {
     }));
     renderLines();
   }
+  updateTotal();
 }
 
 async function chatFill() {
