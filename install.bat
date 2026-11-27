@@ -40,8 +40,8 @@ if not exist "%PYTHON_DIR%" mkdir "%PYTHON_DIR%"
 set "PY_ZIP=%ROOT%_python-embed.zip"
 if not exist "%PY_ZIP%" (
     echo        Telechargement Python %PYTHON_VER% embeddable...
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/%PYTHON_VER%/python-%PYTHON_VER%-embed-amd64.zip' -OutFile '%PY_ZIP%'"
-    if %errorlevel% neq 0 (
+    curl.exe -L -C - -o "%PY_ZIP%" "https://www.python.org/ftp/python/%PYTHON_VER%/python-%PYTHON_VER%-embed-amd64.zip"
+    if !errorlevel! neq 0 (
         echo.
         echo        [ERREUR] Echec du telechargement Python.
         echo        Verifiez votre connexion internet.
@@ -61,7 +61,7 @@ for %%f in ("%PYTHON_DIR%\python*._pth") do (
 REM Installer pip
 set "GETPIP=%ROOT%_get-pip.py"
 if not exist "%GETPIP%" (
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%GETPIP%'"
+    curl.exe -L -C - -o "%GETPIP%" "https://bootstrap.pypa.io/get-pip.py"
 )
 "%PYTHON_DIR%\python.exe" "%GETPIP%" >nul 2>&1
 del "%GETPIP%" 2>nul
@@ -89,13 +89,10 @@ echo  [2/4] Detection du GPU...
 
 set "GPU_TYPE=cpu"
 set "LLAMA_ZIP="
-set "LLAMA_ZIP_URL="
+set "GPU_OLD="
 
 REM NVIDIA ?
-where nvidia-smi >nul 2>&1
-if %errorlevel%==0 (
-    REM Verifier si le GPU est trop vieux pour CUDA 12 (Kepler = GTX 6xx/7xx, GT 6xx/7xx)
-    set "GPU_OLD=0"
+if exist "C:\Windows\System32\nvidia-smi.exe" (
     for /f "tokens=*" %%g in ('nvidia-smi --query-gpu=name --format=csv,noheader 2^>nul') do (
         echo %%g | findstr /i /c:"GTX 6" /c:"GTX 7" /c:"GT 6" /c:"GT 7" >nul && set "GPU_OLD=1"
     )
@@ -141,7 +138,7 @@ REM Verifier le Visual C++ Redistributable (dependance de llama-server.exe)
 if not exist "C:\Windows\System32\VCRUNTIME140.dll" (
     echo        Installation du Visual C++ Redistributable...
     set "VCREDIST=%ROOT%_vc_redist.exe"
-    curl.exe -L -o "!VCREDIST!" "https://aka.ms/vs/17/release/vc_redist.x64.exe" -s
+    curl.exe -L -C - -o "!VCREDIST!" "https://aka.ms/vs/17/release/vc_redist.x64.exe" -s
     if !errorlevel! neq 0 (
         echo.
         echo        [ERREUR] Echec du telechargement du Visual C++ Redistributable.
@@ -164,7 +161,7 @@ if not exist "%LLAMA_DIR%" mkdir "%LLAMA_DIR%"
 set "ZIP_FILE=%ROOT%_llama.zip"
 
 echo        Telechargement de %LLAMA_ZIP%...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri '%LLAMA_ZIP_URL%' -OutFile '%ZIP_FILE%'"
+curl.exe -L -C - -o "%ZIP_FILE%" "%LLAMA_ZIP_URL%"
 if %errorlevel% neq 0 (
     echo.
     echo        [ERREUR] Echec du telechargement de llama.cpp.
@@ -208,22 +205,15 @@ if exist "%MODEL_FILE%" (
 
 if not exist "%MODEL_DIR%" mkdir "%MODEL_DIR%"
 echo.
-echo        Le modele fait 2,6 GB.
-echo        Selon votre connexion, le telechargement peut prendre
-echo        de quelques minutes a une heure.
-echo        C'est un telechargement unique : une fois termine,
-echo        il reste dans le dossier et ne sera plus refait.
-echo.
-echo        Patience, ca vaut le coup.
-echo.
 echo        Telechargement du modele depuis HuggingFace...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf' -OutFile '%MODEL_FILE%'"
+curl.exe -L -C - --progress-bar -o "%MODEL_FILE%" "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf"
 if %errorlevel% neq 0 (
     echo.
     echo        [ERREUR] Echec du telechargement du modele.
-    echo        Vous pouvez le telecharger manuellement depuis :
+    echo        Relancez install.bat pour reprendre le telechargement,
+    echo        ou telechargez manuellement depuis :
     echo        https://huggingface.co/unsloth/Qwen3.5-4B-GGUF
-    echo        et le placer dans : %MODEL_DIR%
+    echo        et placez le fichier dans : %MODEL_DIR%
     pause
     exit /b 1
 )
