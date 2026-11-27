@@ -1,17 +1,17 @@
 ﻿#!/usr/bin/env python3
 """Serveur standalone de l'app Factures Local.
 
-Lance :  python server.py   â†’  http://localhost:5000
+Lance :  python server.py   →  http://localhost:5000
 
 Endpoints :
   GET  /                 page web (static/index.html)
-  POST /api/generate     gÃ©nÃ¨re la facture PDF + aperÃ§u PNG dans data/
-  GET  /files/<name>     sert un fichier de data/ (PDF ou aperÃ§u PNG)
+  POST /api/generate     génère la facture PDF + aperçu PNG dans data/
+  GET  /files/<name>     sert un fichier de data/ (PDF ou aperçu PNG)
   DELETE /api/files/<n>  supprime un fichier de data/
-  GET  /api/state        Ã©tat local : compteur, historique, clients (data/state.json)
-  POST /api/state        sauvegarde l'Ã©tat
-  POST /api/assistant    LLM local via Ollama â†’ JSON facture
-  GET  /api/models       liste des modÃ¨les Ollama installÃ©s
+  GET  /api/state        état local : compteur, historique, clients (data/state.json)
+  POST /api/state        sauvegarde l'état
+  POST /api/assistant    LLM local via llama.cpp → JSON facture
+  GET  /api/models       liste des modèles (info)
 """
 import json
 import os
@@ -126,8 +126,8 @@ def api_files_delete(name):
 
 
 SYSTEM_PROMPT = (
-    "Tu remplis un formulaire de facture Ã  partir des messages de l'utilisateur. "
-    "RÃ©ponds UNIQUEMENT avec un objet JSON valide, sans markdown ni texte autour, "
+    "Tu remplis un formulaire de facture à partir des messages de l'utilisateur. "
+    "Réponds UNIQUEMENT avec un objet JSON valide, sans markdown ni texte autour, "
     "exactement au format : "
     '{"number":"","date":"JJ/MM/AAAA","client":"","addr":[],"title":[],'
     '"lines":[{"desc":"","note":"","qty":1,"amount":0}]}'
@@ -144,23 +144,23 @@ def api_assistant():
 
     prompt = ("Aujourd'hui la date est %s (JJ/MM/AAAA).\n" % today +
               "\n".join("Message %d : %s" % (i + 1, m) for i, m in enumerate(messages)) +
-              "\n\nRÃ¨gles : number = le numÃ©ro de facture demandÃ© (ex : Â« numÃ©ro 230300 Â»), "
+              "\n\nRègles : number = le numéro de facture demandé (ex : « numéro 230300 »), "
               "vide sinon. date = la date de la facture en JJ/MM/AAAA ; si l'utilisateur dit "
-              "Â« demain Â», calcule le lendemain d'aujourd'hui ; vide sinon. client = le nom du "
-              "client seul, sans les mots de la phrase. addr = tableau d'au plus 2 Ã©lÃ©ments : "
+              "« demain », calcule le lendemain d'aujourd'hui ; vide sinon. client = le nom du "
+              "client seul, sans les mots de la phrase. addr = tableau d'au plus 2 éléments : "
               "[rue, \"code postal ville\"] ; le code postal et la ville sont TOUJOURS sur la "
-              "mÃªme ligne (ex : \"75011 Paris\", \"69001 Lyon\") ; si l'utilisateur mentionne un "
-              "arrondissement (ex : \"18e\"), le code postal est 750XX oÃ¹ XX = le numÃ©ro de "
-              "l'arrondissement (ex : \"18e\" â†’ \"75018 Paris\") ; sinon, si la ville est une "
-              "grande ville franÃ§aise bien connue et que le code postal n'est pas donnÃ©, ajoute "
+              "même ligne (ex : \"75011 Paris\", \"69001 Lyon\") ; si l'utilisateur mentionne un "
+              "arrondissement (ex : \"18e\"), le code postal est 750XX où XX = le numéro de "
+              "l'arrondissement (ex : \"18e\" → \"75018 Paris\") ; sinon, si la ville est une "
+              "grande ville française bien connue et que le code postal n'est pas donné, ajoute "
               "le code postal usuel AVANT le nom de la ville ; ne devine JAMAIS un arrondissement "
-              "diffÃ©rent de celui mentionnÃ© par l'utilisateur. "
+              "différent de celui mentionné par l'utilisateur. "
               "title = la 1re ligne est le type de prestation, la 2e ligne le nom du projet UNIQUEMENT "
               "si un nom de projet est explicitement mentionné (sinon une seule ligne, ne mets JAMAIS "
-              "'Projet non spécifié' ni rien d'autre). lines = une entrÃ©e par prestation : desc = nom de la prestation, "
-              "note = le tarif au format Â« 500â‚¬/jour Â» s'il est mentionnÃ©, qty = quantité (jours, heures ou unités selon ce qui est dit) "
-              "amount = total de la ligne (tarif Ã— qty, Ã  calculer). Ne mets que ce "
-              "qui est rÃ©ellement dit, sinon vide (\"\" ou [] ou 0). Ne devine rien.")
+              "'Projet non spécifié' ni rien d'autre). lines = une entrée par prestation : desc = nom de la prestation, "
+              "note = le tarif au format « 500€/jour » s'il est mentionné, qty = quantité (jours, heures ou unités selon ce qui est dit) "
+              "amount = total de la ligne (tarif × qty, à calculer). Ne mets que ce "
+              "qui est réellement dit, sinon vide (\"\" ou [] ou 0). Ne devine rien.")
 
     model = body.get("model") or LLAMA_MODEL
     payload = {
@@ -185,7 +185,7 @@ def api_assistant():
         return jsonify({"ok": True, "text": text, "model": model})
     except urllib.error.URLError as e:
         return jsonify({"ok": False,
-                        "error": "llama-server injoignable (%s) â€” vÃ©rifiez que le serveur tourne." % e}), 502
+                        "error": "llama-server injoignable (%s) — vérifiez que le serveur tourne." % e}), 502
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 

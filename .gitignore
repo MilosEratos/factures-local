@@ -7,3 +7,5 @@ models/
 python/
 llama.log
 _tmp*
+  
+"_*_server.py"  

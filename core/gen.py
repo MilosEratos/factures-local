@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Moteur de génération de factures PDF — standalone.
 
 Page 612×792 pt (lettre), mise en page calibrée au pixel sur des PDF réels
@@ -231,7 +231,7 @@ def build(data, out_path, config=None):
         if note and not note.startswith(" "):
             note = " " + note
         draw_line_desc(c, rt, l["desc"], note)
-        T(c, QTY_C, rt + 0.02, 10, str(l["qty"]), F_REG, "center")
+        T(c, QTY_C, rt + 0.02, 10, str(int(l["qty"])) if float(l["qty"]) == int(l["qty"]) else str(l["qty"]), F_REG, "center")
         T(c, AMT_R, rt + 0.16, 10, fmt_eur(l["amount"]), F_REG, "right")
         hline(c, 1.57, 613.57, ITEM_SEP1 + i * ITEM_PITCH, C_LINE, 2.0)
 

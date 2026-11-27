@@ -1,7 +1,8 @@
 @echo off
+setlocal
 title Factures Local
 echo.
-echo  === Factures Local — demarrage ===
+echo  === Factures Local - demarrage ===
 echo.
 
 set "ROOT=%~dp0"
@@ -10,9 +11,23 @@ REM 1. Lancer llama-server (IA locale)
 echo  [1/2] Demarrage du moteur IA (llama-server)...
 start /min "llama-server" "%ROOT%llama.cpp\llama-server.exe" -m "%ROOT%models\Qwen3.5-4B-Q4_K_M.gguf" -ngl 99 --port 8081 --no-webui --reasoning off -c 2048
 
-REM Attendre que le modele soit charge
+REM Attendre que le modele soit charge (boucle sur le port 8081)
 echo        Attente du chargement du modele...
-timeout /t 15 /nobreak >nul
+set "TRY=0"
+:wait_llama
+powershell -NoProfile -Command "try{$c=New-Object Net.Sockets.TcpClient;$c.Connect('127.0.0.1',8081);$c.Close();exit 0}catch{exit 1}" >nul 2>&1
+if %errorlevel%==0 goto :llama_ready
+set /a TRY+=1
+if %TRY% GEQ 120 (
+    echo        Erreur: llama-server n'a pas demarre dans le delai.
+    echo        Verifiez que le modele est present dans le dossier models\
+    pause
+    exit /b 1
+)
+timeout /t 1 /nobreak >nul
+goto :wait_llama
+:llama_ready
+echo        Modele charge.
 
 REM 2. Lancer l'application web
 echo  [2/2] Demarrage de l'application web...
@@ -25,7 +40,8 @@ echo   Pour arreter : fermer cette fenetre
 echo  ============================================
 echo.
 
-start http://localhost:5000
+REM Ouvrir le navigateur en fond des que Flask sera pret
+start "" /min powershell -NoProfile -Command "while($true){try{$c=New-Object Net.Sockets.TcpClient;$c.Connect('127.0.0.1',5000);$c.Close();break}catch{Start-Sleep -Milliseconds 500}}; Start-Process 'http://localhost:5000'"
 
 REM Utiliser le Python embarque s'il existe, sinon le Python systeme
 if exist "%ROOT%python\python.exe" (

@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableDelayedExpansion
-title Factures Local — Installation
+title Factures Local - Installation
 echo.
 echo  ============================================
 echo   Factures Local - Installation
@@ -97,9 +97,9 @@ if %errorlevel%==0 (
     REM Verifier si le GPU est trop vieux pour CUDA 12 (Kepler = GTX 6xx/7xx, GT 6xx/7xx)
     set "GPU_OLD=0"
     for /f "tokens=*" %%g in ('nvidia-smi --query-gpu=name --format=csv,noheader 2^>nul') do (
-        echo %%g | findstr /i "GTX 6\|GTX 7\|GT 6\|GT 7" >nul && set "GPU_OLD=1"
+        echo %%g | findstr /i /c:"GTX 6" /c:"GTX 7" /c:"GT 6" /c:"GT 7" >nul && set "GPU_OLD=1"
     )
-    if "%GPU_OLD%"=="1" (
+    if "!GPU_OLD!"=="1" (
         echo        GPU NVIDIA detecte mais trop ancien pour CUDA 12 - utilisation du CPU.
         goto :download_llama
     )
@@ -112,7 +112,7 @@ if %errorlevel%==0 (
 
 REM AMD ?
 set "AMD_FOUND=0"
-for /f "tokens=*" %%i in ('wmic path win32_VideoController get name 2^>nul') do (
+for /f "tokens=*" %%i in ('powershell -NoProfile -Command "(Get-CimInstance Win32_VideoController).Name" 2^>nul') do (
     echo %%i | findstr /i "AMD Radeon" >nul && set "AMD_FOUND=1"
 )
 if "%AMD_FOUND%"=="1" (
