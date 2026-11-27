@@ -158,7 +158,7 @@ def api_assistant():
               "title = COURT (1 à 2 mots par ligne, JAMAIS de prix, durée, quantité ou tarif). "
               "1re ligne = type de prestation en 1-2 mots (ex : 'Shooting produit', 'Graphisme'). "
               "2e ligne = nom du projet UNIQUEMENT si explicitement mentionné (sinon une seule ligne, ne mets JAMAIS "
-              "'Projet non spécifié' ni rien d'autre). lines = une entrée par prestation : desc = nom de la prestation, "
+              "'Projet non spécifié' ni rien d'autre). lines = une entrée par prestation ET une entrée par frais déplacement (train, taxi, repas, parking : chaque montant dit DOIT apparaître en ligne). desc = nom de la prestation ou du frais, "
               "note = le tarif au format « 500€/jour » s'il est mentionné, qty = quantité (jours, heures ou unités selon ce qui est dit) "
               "amount = total de la ligne (tarif × qty, à calculer). Ne mets que ce "
               "qui est réellement dit, sinon vide (\"\" ou [] ou 0). Ne devine rien.")
